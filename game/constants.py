@@ -92,39 +92,42 @@ POWERUP_ICONS = {
 }
 
 # Teclas (jugadores humanos)
+# Usamos los valores enteros directamente para no depender de pygame aquí.
+# Equivalencias: w=119, s=115, a=97, d=100, LSHIFT=304, RSHIFT=303
+# UP=273, DOWN=274, LEFT=276, RIGHT=275
+# i=105, k=107, j=106, l=108, u=117
+# KP8=264, KP5=261, KP4=260, KP6=262, KP0=256
 PLAYER_KEYS = [
     # Jugador 1: WASD
     {
-        "up":    pygame.K_w,
-        "down":  pygame.K_s,
-        "left":  pygame.K_a,
-        "right": pygame.K_d,
-        "boost": pygame.K_LSHIFT,
+        "up":    119,   # K_w
+        "down":  115,   # K_s
+        "left":  97,    # K_a
+        "right": 100,   # K_d
+        "boost": 304,   # K_LSHIFT
     },
     # Jugador 2: Flechas
     {
-        "up":    pygame.K_UP,
-        "down":  pygame.K_DOWN,
-        "left":  pygame.K_LEFT,
-        "right": pygame.K_RIGHT,
-        "boost": pygame.K_RSHIFT,
+        "up":    273,   # K_UP
+        "down":  274,   # K_DOWN
+        "left":  276,   # K_LEFT
+        "right": 275,   # K_RIGHT
+        "boost": 303,   # K_RSHIFT
     },
     # Jugador 3: IJKL
     {
-        "up":    pygame.K_i,
-        "down":  pygame.K_k,
-        "left":  pygame.K_j,
-        "right": pygame.K_l,
-        "boost": pygame.K_u,
+        "up":    105,   # K_i
+        "down":  107,   # K_k
+        "left":  106,   # K_j
+        "right": 108,   # K_l
+        "boost": 117,   # K_u
     },
     # Jugador 4: Numpad
     {
-        "up":    pygame.K_KP8,
-        "down":  pygame.K_KP5,
-        "left":  pygame.K_KP4,
-        "right": pygame.K_KP6,
-        "boost": pygame.K_KP0,
+        "up":    264,   # K_KP8
+        "down":  261,   # K_KP5
+        "left":  260,   # K_KP4
+        "right": 262,   # K_KP6
+        "boost": 256,   # K_KP0
     },
 ]
-
-import pygame  # noqa: E402 (re-importación necesaria en este módulo)

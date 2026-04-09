@@ -16,15 +16,18 @@ import os
 # Aseguramos que los imports relativos funcionen
 sys.path.insert(0, os.path.dirname(__file__))
 
-from constants import *
-from game_menu import Menu
-from game_state import GameState
-from network_server import GameServer
-from network_client import GameClient
+from game.constants import *
+from game.menu import Menu
+from game.game_state import GameState
+from game.network.network_server import GameServer
+from game.network.network_client import GameClient
 
 def main():
     pygame.init()
-    pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=512)
+    try:
+        pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=512)
+    except pygame.error:
+        print("Advertencia: no se pudo inicializar el audio. El juego correrá sin sonido.")
 
     screen = pygame.display.set_mode((SCREEN_W, SCREEN_H))
     pygame.display.set_caption("🐍 Slither.io - Pygame Edition")
