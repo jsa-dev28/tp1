@@ -13,7 +13,6 @@ import pygame
 import sys
 import os
 
-# Aseguramos que los imports relativos funcionen
 sys.path.insert(0, os.path.dirname(__file__))
 
 from game.constants import *
@@ -33,7 +32,6 @@ def main():
     pygame.display.set_caption("🐍 Slither.io - Pygame Edition")
     clock = pygame.time.Clock()
 
-    # Icono
     icon_surf = pygame.Surface((32, 32), pygame.SRCALPHA)
     pygame.draw.circle(icon_surf, (80, 220, 80), (16, 16), 14)
     pygame.draw.circle(icon_surf, (40, 160, 40), (16, 16), 10)

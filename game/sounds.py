@@ -15,11 +15,10 @@ def _make_wave(freq: float, duration: float, volume: float = 0.5,
     """Genera un sonido sintético y lo devuelve como pygame.mixer.Sound."""
     sample_rate = 44100
     n_samples = int(sample_rate * duration)
-    buf = array.array("h")  # signed short
+    buf = array.array("h")
 
     for i in range(n_samples):
         t = i / sample_rate
-        # Envolvente de amplitud
         env = math.exp(-decay * t / duration)
         amp = int(32767 * volume * env)
 
@@ -37,7 +36,7 @@ def _make_wave(freq: float, duration: float, volume: float = 0.5,
 
         val = max(-32767, min(32767, int(val)))
         buf.append(val)
-        buf.append(val)  # stereo
+        buf.append(val)
 
     snd = pygame.mixer.Sound(buffer=buf)
     return snd

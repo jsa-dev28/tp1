@@ -25,7 +25,6 @@ FOOD_PALETTE = [
 
 
 class Food:
-    """Pelotita de comida."""
 
     def __init__(self, x: float = None, y: float = None, big: bool = False):
         self.x = x if x is not None else random.uniform(50, WORLD_W - 50)
@@ -41,7 +40,6 @@ class Food:
         sy = int(self.y - cam_y)
         r = int(self.radius)
 
-        # Pulso de brillo
         pulse = 0.5 + 0.5 * math.sin(FOOD_GLOW_SPEED * 2 * math.pi * t + self._phase)
         glow_r = int(r + 4 * pulse)
         glow_alpha = int(80 * pulse)
@@ -84,11 +82,9 @@ class PowerUp:
         sy = int(self.y - cam_y)
         r = POWERUP_RADIUS
 
-        # Bob arriba/abajo
         bob = int(4 * math.sin(2 * t + self._phase))
         sy += bob
 
-        # Halo giratorio
         pulse = 0.5 + 0.5 * math.sin(3 * t + self._phase)
         halo_r = r + int(6 * pulse)
         halo_s = pygame.Surface((halo_r * 2 + 6, halo_r * 2 + 6), pygame.SRCALPHA)
@@ -96,7 +92,6 @@ class PowerUp:
                            (halo_r + 3, halo_r + 3), halo_r + 3)
         surface.blit(halo_s, (sx - halo_r - 3, sy - halo_r - 3))
 
-        # Cuerpo del item (hexágono)
         pts = []
         for i in range(6):
             a = self._angle + i * math.pi / 3
@@ -104,7 +99,6 @@ class PowerUp:
         pygame.draw.polygon(surface, self.color, pts)
         pygame.draw.polygon(surface, (255, 255, 255), pts, 2)
 
-        # Icono (texto pequeño)
         icon_surf = font.render(self.icon, True, (255, 255, 255))
         rect = icon_surf.get_rect(center=(sx, sy))
         surface.blit(icon_surf, rect)

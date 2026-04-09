@@ -1,5 +1,5 @@
 """
-HUD (Heads-Up Display): marcador, minimapa, power-ups activos, etc.
+HUD: marcador, minimapa, power-ups activos, etc.
 """
 
 import math
@@ -18,7 +18,6 @@ class HUD:
         self._fonts: dict[int, pygame.font.Font] = {}
         self._init_fonts()
 
-        # Minimapa
         self.minimap_w = 180
         self.minimap_h = 180
         self.minimap_x = SCREEN_W - self.minimap_w - 10
@@ -42,27 +41,21 @@ class HUD:
     def font(self, size: int) -> pygame.font.Font:
         return self._fonts.get(size, self._fonts[16])
 
-    # ------------------------------------------------------------------ #
     def draw(self, snakes: list, food_list: list, powerups: list,
              focus_snake=None, t: float = 0.0, paused: bool = False,
              mode: str = "solo"):
 
-        # Leaderboard lateral
         self._draw_leaderboard(snakes, t)
 
-        # Power-ups activos del jugador enfocado
         if focus_snake and focus_snake.alive:
             self._draw_powerup_bar(focus_snake)
             self._draw_snake_stats(focus_snake)
 
-        # Minimapa
         self._draw_minimap(snakes, food_list, powerups)
 
-        # Pausa
         if paused:
             self._draw_pause()
 
-    # ------------------------------------------------------------------ #
     def _draw_leaderboard(self, snakes: list, t: float):
         alive = [s for s in snakes if s.alive]
         dead  = [s for s in snakes if not s.alive]
@@ -80,20 +73,16 @@ class HUD:
 
         for i, snake in enumerate(ordered[:10]):
             y = 34 + i * 26
-            # Fondo del item
             if i % 2 == 0:
                 pygame.draw.rect(panel, (255, 255, 255, 10), (2, y - 2, panel_w - 4, 24))
 
-            # Posición
             pos_color = [(255, 210, 50), (200, 200, 200), (180, 120, 60)]
             pc = pos_color[i] if i < 3 else (160, 160, 180)
             pos_txt = self.font(14).render(f"#{i+1}", True, pc)
             panel.blit(pos_txt, (6, y))
 
-            # Color del snake
             pygame.draw.circle(panel, snake.body_color[:3], (38, y + 8), 6)
 
-            # Nombre
             name = snake.name[:12]
             if not snake.alive:
                 name += " ☠"
@@ -101,17 +90,14 @@ class HUD:
                                              (180, 180, 180) if not snake.alive else (220, 220, 240))
             panel.blit(name_surf, (50, y))
 
-            # Score
             sc_surf = self.font(14).render(str(snake.score), True, (255, 255, 255))
             panel.blit(sc_surf, (panel_w - sc_surf.get_width() - 8, y))
 
-            # Longitud
             len_surf = self.font(12).render(f"len:{snake.length}", True, (140, 140, 160))
             panel.blit(len_surf, (panel_w - len_surf.get_width() - 8, y + 14))
 
         self.screen.blit(panel, (10, 10))
 
-    # ------------------------------------------------------------------ #
     def _draw_powerup_bar(self, snake):
         if not snake.powerups:
             return
@@ -130,7 +116,6 @@ class HUD:
             icon_surf = self.font(20).render(icon, True, color)
             self.screen.blit(icon_surf, (x + 32 - icon_surf.get_width() // 2, y + 6))
 
-            # Barra de tiempo
             ratio = max(0, remaining / POWERUP_DURATION)
             bar_w = int(60 * ratio)
             pygame.draw.rect(self.screen, (50, 50, 50), (x + 2, y + 44, 60, 8))
@@ -138,7 +123,6 @@ class HUD:
 
             x += 70
 
-    # ------------------------------------------------------------------ #
     def _draw_snake_stats(self, snake):
         """Estadísticas del jugador enfocado en la esquina inferior izquierda."""
         lines = [
@@ -155,7 +139,6 @@ class HUD:
             self.screen.blit(surf, (x, y))
             y += 20
 
-    # ------------------------------------------------------------------ #
     def _draw_minimap(self, snakes, food_list, powerups):
         mm = self._minimap_surf
         mm.fill((0, 0, 0, 180))
@@ -164,20 +147,17 @@ class HUD:
         sx = self.minimap_w / WORLD_W
         sy = self.minimap_h / WORLD_H
 
-        # Comida (puntos diminutos)
         for f in food_list[::5]:
             px = int(f.x * sx)
             py = int(f.y * sy)
             c = (*f.color, 120)
             pygame.draw.circle(mm, c, (px, py), 1)
 
-        # Power-ups
         for pu in powerups:
             px = int(pu.x * sx)
             py = int(pu.y * sy)
             pygame.draw.circle(mm, (*pu.color, 200), (px, py), 3)
 
-        # Serpientes
         for snake in snakes:
             if not snake.alive:
                 continue
@@ -189,11 +169,9 @@ class HUD:
 
         self.screen.blit(mm, (self.minimap_x, self.minimap_y))
 
-        # Título del minimapa
         t = self.font(12).render("MAPA", True, (180, 180, 210))
         self.screen.blit(t, (self.minimap_x + 4, self.minimap_y - 16))
 
-    # ------------------------------------------------------------------ #
     def _draw_pause(self):
         overlay = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, 140))
@@ -213,12 +191,9 @@ class HUD:
 
         if t < 0.5:
             return
-
-        # Título
         txt = self.font(48).render("☠  HAS MUERTO  ☠", True, (255, 80, 80))
         self.screen.blit(txt, txt.get_rect(center=(SCREEN_W // 2, SCREEN_H // 2 - 80)))
 
-        # Stats
         stats = [
             f"Score: {snake.score}",
             f"Longitud: {snake.length}",
@@ -247,7 +222,6 @@ class HUD:
         self.screen.blit(txt, txt.get_rect(center=(SCREEN_W // 2, SCREEN_H // 2)))
 
     def draw_kill_feed(self, events: list, t: float):
-        """Muestra feed de eliminaciones en la esquina superior derecha."""
         x = SCREEN_W - 260
         y = 220
         for event_text, age in events:

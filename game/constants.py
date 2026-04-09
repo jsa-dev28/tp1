@@ -2,49 +2,43 @@
 Constantes globales del juego.
 """
 
-# Pantalla
 SCREEN_W = 1280
 SCREEN_H = 720
 FPS = 60
 
-# Mundo (más grande que la pantalla → scroll de cámara)
 WORLD_W = 3000
 WORLD_H = 3000
 
-# Serpiente
 SEGMENT_RADIUS = 10
-SEGMENT_GAP = 8          # distancia entre centros de segmentos
-INITIAL_LENGTH = 10      # segmentos al comenzar
-SPEED_BASE = 160         # px/s
-SPEED_BOOST = 280        # px/s al usar boost
-BOOST_DRAIN = 1.5        # segmentos que se pierden por segundo de boost
-GROW_PER_FOOD = 5        # segmentos que se ganan por comida
-TURN_SPEED = 3.5         # rad/s
+SEGMENT_GAP = 8
+INITIAL_LENGTH = 10
+SPEED_BASE = 160
+SPEED_BOOST = 280
+BOOST_DRAIN = 1.5
+GROW_PER_FOOD = 5
+TURN_SPEED = 3.5
 
 # Comida
-FOOD_COUNT_TARGET = 250  # cantidad de comida en el mapa en todo momento
+FOOD_COUNT_TARGET = 250
 FOOD_RADIUS = 6
-FOOD_GLOW_SPEED = 2.0    # ciclos por segundo
-
+FOOD_GLOW_SPEED = 2.0
 # IA
-AI_SIGHT_RADIUS = 250    # radio de visión de los bots
-AI_DANGER_RADIUS = 150   # radio de peligro (evita colisiones)
-AI_REACTION_TIME = 0.12  # segundos entre decisiones
-BOT_COUNT_DEFAULT = 5    # bots cuando no hay multijugador humano
+AI_SIGHT_RADIUS = 250
+AI_DANGER_RADIUS = 150
+AI_REACTION_TIME = 0.12
+BOT_COUNT_DEFAULT = 5
 
 # Power-ups
-POWERUP_SPAWN_INTERVAL = 8.0   # segundos
-POWERUP_DURATION = 7.0         # segundos que dura el efecto
+POWERUP_SPAWN_INTERVAL = 8.0
+POWERUP_DURATION = 7.0
 POWERUP_RADIUS = 12
 
-# Colores — paleta principal
 C_BG        = (8,  14,  28)
 C_GRID      = (14, 22,  45)
 C_WHITE     = (240, 240, 255)
 C_BLACK     = (0,   0,   0)
 C_HUD_BG    = (0,   0,   0,  160)
 
-# Colores de jugadores (cuerpo, cabeza)
 PLAYER_COLORS = [
     {"body": (50, 200, 100),  "head": (80,  255, 130),  "glow": (50, 200, 80,  60),  "name": "Verde"},
     {"body": (60, 140, 220),  "head": (100, 180, 255),  "glow": (60, 140, 220, 60),  "name": "Azul"},
@@ -52,7 +46,6 @@ PLAYER_COLORS = [
     {"body": (200, 160, 30),  "head": (255, 210, 50),   "glow": (200, 160, 30, 60),  "name": "Amarillo"},
 ]
 
-# Colores de bots (hasta 12 bots)
 BOT_COLORS = [
     {"body": (160, 60,  200), "head": (200, 100, 255), "glow": (160, 60,  200, 50), "name": "Bot Púrpura"},
     {"body": (200, 110, 40),  "head": (255, 150, 80),  "glow": (200, 110, 40, 50),  "name": "Bot Naranja"},
@@ -91,12 +84,6 @@ POWERUP_ICONS = {
     PU_DOUBLE: "×2",
 }
 
-# Teclas (jugadores humanos)
-# Usamos los valores enteros directamente para no depender de pygame aquí.
-# Equivalencias: w=119, s=115, a=97, d=100, LSHIFT=304, RSHIFT=303
-# UP=273, DOWN=274, LEFT=276, RIGHT=275
-# i=105, k=107, j=106, l=108, u=117
-# KP8=264, KP5=261, KP4=260, KP6=262, KP0=256
 PLAYER_KEYS = [
     # Jugador 1: WASD
     {

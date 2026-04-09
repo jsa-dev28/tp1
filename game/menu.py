@@ -11,7 +11,6 @@ from . import sounds
 
 
 class AnimatedSnake:
-    """Serpiente decorativa del fondo del menú."""
 
     def __init__(self, color, y_start):
         self.segments = [(x, y_start + math.sin(x * 0.02) * 50)
@@ -63,13 +62,11 @@ class Button:
         x = self.rect.centerx - w // 2
         y = self.rect.centery - h // 2
 
-        # Fondo
         bg_color = (
             min(255, int(self.color[0] * (1.2 if self.hovered else 1.0))),
             min(255, int(self.color[1] * (1.2 if self.hovered else 1.0))),
             min(255, int(self.color[2] * (1.2 if self.hovered else 1.0))),
         )
-        # Glow
         if self.hovered:
             glow = pygame.Surface((w + 20, h + 20), pygame.SRCALPHA)
             pygame.draw.rect(glow, (*self.color[:3], 60), (0, 0, w + 20, h + 20),
@@ -104,13 +101,12 @@ class Menu:
         self._result = None
         self._selected_players = 1
         self._selected_bots = 5
-        self._net_mode = None    # "server" | "client"
+        self._net_mode = None
         self._net_ip = "127.0.0.1"
         self._net_port = 5555
         self._input_active = False
         self._input_text = ""
 
-        # Fuentes
         try:
             base = pygame.font.match_font("impact,arialblack,impact,arial")
             self._font_title = pygame.font.Font(base, 72)
@@ -124,14 +120,12 @@ class Menu:
             self._font_body  = pygame.font.SysFont("monospace", 20)
             self._font_small = pygame.font.SysFont("monospace", 16)
 
-        # Serpientes del fondo
         self._bg_snakes = [
             AnimatedSnake(PLAYER_COLORS[i % len(PLAYER_COLORS)]["body"],
                           100 + i * 120)
             for i in range(6)
         ]
 
-        # Estrellas
         self._stars = [(random.uniform(0, SCREEN_W), random.uniform(0, SCREEN_H),
                         random.uniform(0.5, 2.0)) for _ in range(200)]
 
@@ -175,7 +169,6 @@ class Menu:
         self._t += dt
         clock_result = None
 
-        # Eventos
         mouse = pygame.mouse.get_pos()
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -198,17 +191,14 @@ class Menu:
             if clock_result:
                 return clock_result
 
-        # Fondo
         self.screen.fill(C_BG)
         self._draw_stars()
         for sn in self._bg_snakes:
             sn.update(dt, self._t)
             sn.draw(self.screen)
 
-        # Título
         self._draw_title()
 
-        # Botones de la pantalla activa
         if self._screen == self.SCREEN_MAIN:
             self._update_draw_buttons(self._btns_main, mouse, dt)
         elif self._screen == self.SCREEN_LOCAL:
@@ -216,7 +206,6 @@ class Menu:
         elif self._screen == self.SCREEN_NETWORK:
             self._draw_network_screen(mouse, dt)
 
-        # Versión
         ver = self._font_small.render("v1.0 · Slither Pygame Edition", True, (60, 60, 90))
         self.screen.blit(ver, (SCREEN_W - ver.get_width() - 10, SCREEN_H - 24))
 
@@ -278,14 +267,12 @@ class Menu:
         cx = SCREEN_W // 2
         t = self._t
 
-        # Sombra con offset animado
         shadow_offset = int(4 + 2 * math.sin(t * 1.5))
         title_text = "SLITHER.IO"
         shadow = self._font_title.render(title_text, True, (10, 40, 10))
         self.screen.blit(shadow, shadow.get_rect(center=(cx + shadow_offset,
                                                           140 + shadow_offset)))
 
-        # Gradiente simulado con dos capas
         title1 = self._font_title.render(title_text, True, (80, 240, 100))
         title2 = self._font_title.render(title_text, True, (50, 180, 70))
         self.screen.blit(title2, title2.get_rect(center=(cx, 141)))
@@ -306,19 +293,15 @@ class Menu:
         f = self._font_body
         fs = self._font_small
 
-        # Título de sección
         sec = self._font_sub.render("CONFIGURAR PARTIDA LOCAL", True, (180, 220, 180))
         self.screen.blit(sec, sec.get_rect(center=(cx, 250)))
 
-        # Jugadores humanos
         p_label = f.render(f"Jugadores humanos:  {self._selected_players}", True, (220, 220, 255))
         self.screen.blit(p_label, p_label.get_rect(center=(cx - 50, 330)))
 
-        # Bots
         b_label = f.render(f"Bots de IA:         {self._selected_bots}", True, (220, 220, 255))
         self.screen.blit(b_label, b_label.get_rect(center=(cx - 50, 400)))
 
-        # Controles hint
         hints = [
             "J1: WASD + SHIFT(boost)",
             "J2: ↑↓←→ + RSHIFT",

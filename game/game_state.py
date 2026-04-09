@@ -30,7 +30,7 @@ class GameState:
                  num_players: int, num_bots: int,
                  server=None, client=None):
         self.screen = screen
-        self.mode = mode          # "solo", "coop", "vs", "network"
+        self.mode = mode
         self.num_players = num_players
         self.num_bots = num_bots
         self.server = server
@@ -39,47 +39,37 @@ class GameState:
         self.hud = HUD(screen)
         self.particles = ParticleSystem()
 
-        self._t = 0.0             # tiempo total
+        self._t = 0.0
         self._paused = False
-        self._state = "countdown" # countdown | playing | death | gameover
+        self._state = "countdown"
         self._countdown = 3.0
-        self._death_timer = 0.0   # para la pantalla de muerte del jugador 1
+        self._death_timer = 0.0
 
-        # Cámara (sigue al jugador 1 o al primero vivo)
         self.cam_x = 0.0
         self.cam_y = 0.0
 
-        # Power-up spawn timer
         self._pu_timer = POWERUP_SPAWN_INTERVAL
 
-        # Kill feed  [(texto, edad)]
         self._kill_feed: list[tuple[str, float]] = []
 
-        # Inicializar serpientes
         self.snakes: list = []
         self._init_snakes()
 
-        # Comida
         self.food: list[Food] = []
         self._spawn_initial_food()
 
-        # Power-ups
         self.powerups: list[PowerUp] = []
 
-        # Fondo de estrellas
         self._stars = [(random.uniform(0, WORLD_W), random.uniform(0, WORLD_H),
                         random.uniform(0.5, 2.0)) for _ in range(400)]
 
-        # Sonidos
         sounds.init()
         sounds.play("countdown")
 
-    # ------------------------------------------------------------------ #
     def _init_snakes(self):
         margin = 400
         positions = []
 
-        # Jugadores humanos
         for i in range(self.num_players):
             color = PLAYER_COLORS[i % len(PLAYER_COLORS)]
             keys  = PLAYER_KEYS[i % len(PLAYER_KEYS)]
@@ -89,7 +79,6 @@ class GameState:
             positions.append((x, y))
             self.snakes.append(s)
 
-        # Bots
         for j in range(self.num_bots):
             color = BOT_COLORS[j % len(BOT_COLORS)]
             difficulty = random.uniform(0.8, 1.6)
@@ -108,15 +97,10 @@ class GameState:
         humans = [s for s in self.snakes if s.is_human and s.alive]
         if humans:
             return humans[0]
-        # Si no hay humanos vivos, seguir al bot más grande
         alive = [s for s in self.snakes if s.alive]
         if alive:
             return max(alive, key=lambda s: s.length)
         return None
-
-    # ------------------------------------------------------------------ #
-    #  UPDATE
-    # ------------------------------------------------------------------ #
 
     def update(self, dt: float) -> str | None:
         """Actualiza el estado. Devuelve "menu" si se debe volver al menú."""
@@ -150,58 +134,46 @@ class GameState:
                 return "menu"
             return None
 
-        # ── Estado: playing ──
         self._t += dt
         self._pu_timer -= dt
         self._update_kill_feed(dt)
 
-        # Input de jugadores humanos
         pressed = pygame.key.get_pressed()
         for s in self.snakes:
             if s.is_human and s.alive:
                 s.handle_input_dt(pressed, dt)
 
-        # IA de bots
         for s in self.snakes:
             if not s.is_human and s.alive:
                 s.ai_update(dt, self.food, self.snakes, self.powerups)
 
-        # Actualizar serpientes
         for s in self.snakes:
             if s.alive:
                 s.update(dt)
-                # Partículas de boost
                 if s.boosting and s._boost_particle_timer <= 0:
                     self.particles.emit_boost(s.head.x, s.head.y,
                                              s.body_color, s.angle)
                     s._boost_particle_timer = 0.04
 
-        # Magneto: atraer comida hacia el jugador
         for s in self.snakes:
             if s.alive and s.has_magnet:
                 self._apply_magnet(s)
 
-        # Colisiones
         self._check_collisions()
 
-        # Reabastecer comida
         while len(self.food) < FOOD_COUNT_TARGET:
             big = random.random() < 0.08
             self.food.append(Food(big=big))
 
-        # Spawnear power-ups
         if self._pu_timer <= 0:
             self.powerups.append(PowerUp())
             self._pu_timer = POWERUP_SPAWN_INTERVAL + random.uniform(-2, 2)
 
-        # Actualizar power-ups
         for pu in self.powerups:
             pu.update(dt)
 
-        # Actualizar partículas
         self.particles.update(dt)
 
-        # Cámara
         focus = self._get_focus_snake()
         if focus:
             target_cx = focus.head.x - SCREEN_W / 2
@@ -209,7 +181,6 @@ class GameState:
             self.cam_x += (target_cx - self.cam_x) * 0.1
             self.cam_y += (target_cy - self.cam_y) * 0.1
 
-        # ¿Fin de partida?
         humans_alive = [s for s in self.snakes if s.is_human and s.alive]
         if self.num_players > 0 and not humans_alive:
             self._state = "death"
@@ -220,7 +191,6 @@ class GameState:
             self._state = "gameover"
             self._death_timer = 0.0
 
-        # Red LAN: enviar/recibir estado
         if self.server:
             self.server.broadcast_state(self._serialize_state())
         if self.client:
@@ -262,17 +232,12 @@ class GameState:
                 f.x += dx / d * force * 0.016
                 f.y += dy / d * force * 0.016
 
-    # ------------------------------------------------------------------ #
-    #  COLISIONES
-    # ------------------------------------------------------------------ #
-
     def _check_collisions(self):
         alive = [s for s in self.snakes if s.alive]
 
         for snake in alive:
             hx, hy = snake.head.x, snake.head.y
 
-            # ── Comida ──
             eaten = []
             for i, f in enumerate(self.food):
                 dx = hx - f.x
@@ -285,7 +250,6 @@ class GameState:
             for i in reversed(eaten):
                 self.food.pop(i)
 
-            # ── Power-ups ──
             collected = []
             for i, pu in enumerate(self.powerups):
                 dx = hx - pu.x
@@ -298,12 +262,10 @@ class GameState:
             for i in reversed(collected):
                 self.powerups.pop(i)
 
-            # ── Colisión con otras serpientes ──
             for other in alive:
                 if snake is other:
                     continue
                 if snake.collides_with_snake(other, skip_head=(other is snake)):
-                    # Si tiene escudo, absorber el golpe
                     if snake.has_shield:
                         sounds.play("shield_hit")
                         del snake.powerups["shield"]
@@ -311,7 +273,6 @@ class GameState:
                         self._kill_snake(snake, killer=other)
                         break
 
-            # ── Auto-colisión (cola propia, sólo desde el segmento 20) ──
             if snake.alive and len(snake.segments) > 25:
                 for seg in snake.segments[20:]:
                     dx = hx - seg.x
@@ -325,14 +286,12 @@ class GameState:
             return
         snake.die(killer)
 
-        # Soltar comida
         drops = snake.get_food_drops()
         for (fx, fy) in drops:
             big = random.random() < 0.15
             self.food.append(Food(fx + random.uniform(-20, 20),
                                   fy + random.uniform(-20, 20), big))
 
-        # Partículas de muerte
         self.particles.emit_death(snake.head.x, snake.head.y, snake.head_color)
         sounds.play("die")
 
@@ -340,54 +299,41 @@ class GameState:
             sounds.play("kill", 0.7)
             self._kill_feed.append((f"☠ {killer.name} eliminó a {snake.name}", 0.0))
 
-    # ------------------------------------------------------------------ #
-    #  DRAW
-    # ------------------------------------------------------------------ #
-
     def draw(self):
         self.screen.fill(C_BG)
         self._draw_background()
 
         cx, cy = self.cam_x, self.cam_y
 
-        # Serpientes (de atrás hacia adelante)
         for s in sorted(self.snakes, key=lambda x: x.length):
             if s.alive:
                 s.draw(self.screen, cx, cy)
                 s.draw_name(self.screen, cx, cy, self.hud.font(12))
 
-        # Comida
         for f in self.food:
             f.draw(self.screen, cx, cy, self._t)
 
-        # Power-ups
         for pu in self.powerups:
             pu.draw(self.screen, cx, cy, self._t, self.hud.font(14))
 
-        # Partículas
         self.particles.draw(self.screen, cx, cy)
 
-        # Borde del mundo
         self._draw_world_border(cx, cy)
 
-        # HUD
         focus = self._get_focus_snake()
         self.hud.draw(self.snakes, self.food, self.powerups, focus,
                       self._t, self._paused, self.mode)
         self.hud.draw_kill_feed(self._kill_feed, self._t)
 
-        # Cuenta regresiva
         if self._state == "countdown":
             n = max(0, math.ceil(self._countdown))
             self.hud.draw_countdown(n)
 
-        # Pantalla de muerte
         if self._state == "death":
             dead_human = next((s for s in self.snakes if s.is_human and not s.alive), None)
             if dead_human:
                 self.hud.draw_death_screen(dead_human, self.snakes, self._death_timer)
 
-        # Game over
         if self._state == "gameover":
             self._draw_gameover()
 
@@ -396,7 +342,6 @@ class GameState:
         cx, cy = int(self.cam_x), int(self.cam_y)
         grid_size = 80
 
-        # Grid
         start_x = -(cx % grid_size)
         start_y = -(cy % grid_size)
         for gx in range(start_x, SCREEN_W + grid_size, grid_size):
@@ -404,7 +349,6 @@ class GameState:
         for gy in range(start_y, SCREEN_H + grid_size, grid_size):
             pygame.draw.line(self.screen, C_GRID, (0, gy), (SCREEN_W, gy), 1)
 
-        # Estrellas (paralaje lento)
         for sx, sy, br in self._stars:
             px = int((sx - cx * 0.2) % SCREEN_W)
             py = int((sy - cy * 0.2) % SCREEN_H)
@@ -420,7 +364,6 @@ class GameState:
         by2 = int(WORLD_H - cy)
         pygame.draw.rect(self.screen, (200, 80, 80),
                          (bx1, by1, bx2 - bx1, by2 - by1), 4)
-        # Advertencia de borde cercano
         focus = self._get_focus_snake()
         if focus:
             hx, hy = focus.head.x, focus.head.y
@@ -464,4 +407,4 @@ class GameState:
         }
 
     def _apply_remote_state(self, state: dict):
-        pass  # Implementación extendida en network/client.py
+        pass

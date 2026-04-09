@@ -1,5 +1,5 @@
 """
-Módulo de la serpiente (jugador y bot).
+Módulo de la serpiente (jugadores y bots).
 """
 
 import math
@@ -16,7 +16,6 @@ from .constants import (
 
 
 class Segment:
-    """Un segmento del cuerpo."""
     __slots__ = ("x", "y")
 
     def __init__(self, x: float, y: float):
@@ -25,10 +24,6 @@ class Segment:
 
 
 class Snake:
-    """
-    Serpiente genérica.  Subclasificada por PlayerSnake y BotSnake.
-    """
-
     def __init__(self, color_info: dict, snake_id: int, x=None, y=None):
         self.id = snake_id
         self.color_info = color_info
@@ -37,12 +32,10 @@ class Snake:
         self.glow_color  = color_info.get("glow", (*color_info["body"][:3], 60))
         self.name = color_info["name"]
 
-        # Posición inicial aleatoria si no se especifica
         cx = x if x is not None else random.randint(300, WORLD_W - 300)
         cy = y if y is not None else random.randint(300, WORLD_H - 300)
         self.angle = random.uniform(0, 2 * math.pi)
 
-        # Cuerpo
         self.segments: list[Segment] = []
         for i in range(INITIAL_LENGTH):
             sx = cx - i * SEGMENT_GAP * math.cos(self.angle)
@@ -53,29 +46,19 @@ class Snake:
         self.alive = True
         self.boosting = False
 
-        # Score / estadísticas
         self.score = 0
         self.kills = 0
         self.foods_eaten = 0
 
-        # Power-ups activos  {tipo: tiempo_restante}
         self.powerups: dict[str, float] = {}
 
-        # Animación de muerte
         self.death_timer = 0.0
 
-        # Serpiente que te mató (para crédito de kill)
         self.killed_by: "Snake | None" = None
 
-        # Tiempo vivo
         self.lifetime = 0.0
 
-        # Partículas de movimiento
         self._boost_particle_timer = 0.0
-
-    # ------------------------------------------------------------------ #
-    #  Propiedades derivadas
-    # ------------------------------------------------------------------ #
 
     @property
     def head(self) -> Segment:
@@ -108,36 +91,27 @@ class Snake:
     def has_magnet(self) -> bool:
         return PU_MAGNET in self.powerups
 
-    # ------------------------------------------------------------------ #
-    #  Actualización
-    # ------------------------------------------------------------------ #
-
     def update(self, dt: float):
         if not self.alive:
             return
 
         self.lifetime += dt
 
-        # Mover cabeza
         spd = self.speed
         new_x = self.head.x + spd * dt * math.cos(self.angle)
         new_y = self.head.y + spd * dt * math.sin(self.angle)
 
-        # Wrap-around del mundo
         new_x = new_x % WORLD_W
         new_y = new_y % WORLD_H
 
         self.segments.insert(0, Segment(new_x, new_y))
 
-        # Ajustar longitud
         while len(self.segments) > self.target_length:
             self.segments.pop()
 
-        # Consumo de boost
         if self.boosting and self.target_length > INITIAL_LENGTH + 3:
             self.target_length -= BOOST_DRAIN * dt
 
-        # Power-ups: descontar tiempo
         expired = [k for k, v in self.powerups.items() if v <= 0]
         for k in expired:
             del self.powerups[k]
@@ -162,9 +136,6 @@ class Snake:
             killer.kills += 1
             killer.score += max(50, self.length * 2)
 
-    # ------------------------------------------------------------------ #
-    #  Colisiones
-    # ------------------------------------------------------------------ #
 
     def head_rect(self) -> pygame.Rect:
         r = SEGMENT_RADIUS
@@ -187,11 +158,7 @@ class Snake:
             if dx * dx + dy * dy < (SEGMENT_RADIUS * 2) ** 2:
                 return True
         return False
-
-    # ------------------------------------------------------------------ #
-    #  Dibujo
-    # ------------------------------------------------------------------ #
-
+    
     def draw(self, surface: pygame.Surface, camera_x: float, camera_y: float,
              alpha_override: int = 255):
         if not self.segments:
@@ -202,7 +169,6 @@ class Snake:
         head_c = self.head_color
         glow_c = self.glow_color
 
-        # Opacidad para ghost
         ghost_alpha = 120 if self.has_ghost else alpha_override
 
         for i in range(n - 1, -1, -1):
@@ -210,11 +176,9 @@ class Snake:
             sx = int(seg.x - camera_x)
             sy = int(seg.y - camera_y)
 
-            # Tamaño varía un poco (cabeza más grande)
-            t = 1 - (i / n) * 0.3   # 1.0 en cabeza → 0.7 en cola
+            t = 1 - (i / n) * 0.3
             r = max(4, int(SEGMENT_RADIUS * t))
 
-            # Color interpolado
             if i == 0:
                 color = head_c
             else:
@@ -225,31 +189,25 @@ class Snake:
                     int(head_c[2] * (1 - ratio) + body_c[2] * ratio),
                 )
 
-            # Glow (halo exterior)
             if i == 0 or i % 4 == 0:
                 glow_surf = pygame.Surface((r * 4, r * 4), pygame.SRCALPHA)
                 ga = int(glow_c[3] * (ghost_alpha / 255))
                 pygame.draw.circle(glow_surf, (*glow_c[:3], ga), (r * 2, r * 2), r * 2)
                 surface.blit(glow_surf, (sx - r * 2, sy - r * 2))
 
-            # Cuerpo
             if ghost_alpha < 255:
                 seg_surf = pygame.Surface((r * 2 + 2, r * 2 + 2), pygame.SRCALPHA)
                 pygame.draw.circle(seg_surf, (*color, ghost_alpha), (r + 1, r + 1), r)
                 surface.blit(seg_surf, (sx - r - 1, sy - r - 1))
             else:
                 pygame.draw.circle(surface, color, (sx, sy), r)
-                # Highlight
                 pygame.draw.circle(surface, (
                     min(255, color[0] + 60),
                     min(255, color[1] + 60),
                     min(255, color[2] + 60)
                 ), (sx - r // 3, sy - r // 3), max(2, r // 3))
-
-        # Ojos en la cabeza
         self._draw_eyes(surface, camera_x, camera_y)
 
-        # Indicador de shield
         if self.has_shield:
             hx = int(self.head.x - camera_x)
             hy = int(self.head.y - camera_y)
@@ -303,10 +261,6 @@ class Snake:
         return drops
 
 
-# ------------------------------------------------------------------ #
-#  Serpiente controlada por un humano
-# ------------------------------------------------------------------ #
-
 class PlayerSnake(Snake):
     def __init__(self, color_info, snake_id, keys: dict, x=None, y=None):
         super().__init__(color_info, snake_id, x, y)
@@ -331,11 +285,6 @@ class PlayerSnake(Snake):
             self.angle += TURN_SPEED * dt
         self.boosting = pressed[self.keys["boost"]]
 
-
-# ------------------------------------------------------------------ #
-#  Serpiente controlada por IA
-# ------------------------------------------------------------------ #
-
 class BotSnake(Snake):
     """IA con tres comportamientos: buscar comida, evitar peligros, perseguir."""
 
@@ -346,7 +295,7 @@ class BotSnake(Snake):
     def __init__(self, color_info, snake_id, difficulty: float = 1.0, x=None, y=None):
         super().__init__(color_info, snake_id, x, y)
         self.is_human = False
-        self.difficulty = difficulty   # 0.5 (fácil) … 2.0 (difícil)
+        self.difficulty = difficulty
 
         self._react_timer = 0.0
         self._target_angle = self.angle
@@ -361,7 +310,6 @@ class BotSnake(Snake):
         self._wander_timer -= dt
 
         if self._react_timer > 0:
-            # Suavizar giro hacia objetivo
             self._smooth_turn(dt)
             self.update(dt)
             return
@@ -370,7 +318,6 @@ class BotSnake(Snake):
 
         hx, hy = self.head.x, self.head.y
 
-        # ── 1. Detección de peligros cercanos ──
         danger_angle = self._find_danger(snakes)
         if danger_angle is not None:
             self._behavior = self.BEHAVIOR_FLEE
@@ -383,7 +330,6 @@ class BotSnake(Snake):
 
         self.boosting = False
 
-        # ── 2. Buscar power-up cercano ──
         pu_target = self._find_nearest_powerup(powerups)
         if pu_target:
             self._behavior = self.BEHAVIOR_HUNT
@@ -392,7 +338,6 @@ class BotSnake(Snake):
             self.update(dt)
             return
 
-        # ── 3. Buscar comida más cercana ──
         food_target = self._find_nearest_food(food_list)
         if food_target:
             self._behavior = self.BEHAVIOR_WANDER
@@ -401,7 +346,6 @@ class BotSnake(Snake):
             self.update(dt)
             return
 
-        # ── 4. Deambular ──
         if self._wander_target is None or self._wander_timer <= 0:
             self._wander_target = (
                 random.uniform(200, WORLD_W - 200),
@@ -431,7 +375,6 @@ class BotSnake(Snake):
         for snake in snakes:
             if snake is self or not snake.alive:
                 continue
-            # Peligro: cabeza de otro bot/jugador más grande
             if snake.length > self.length * 0.8:
                 dx = snake.head.x - hx
                 dy = snake.head.y - hy
@@ -439,7 +382,6 @@ class BotSnake(Snake):
                 if d2 < closest_dist:
                     closest_dist = d2
                     return math.atan2(dy, dx)
-            # Peligro: segmento corporal de cualquier serpiente
             for seg in snake.segments[5:]:
                 dx = seg.x - hx
                 dy = seg.y - hy

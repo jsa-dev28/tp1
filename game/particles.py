@@ -69,7 +69,6 @@ class ParticleSystem:
             ))
 
     def emit_boost(self, x, y, color, angle):
-        """Estela de boost detrás de la cabeza."""
         for _ in range(3):
             a = angle + math.pi + random.uniform(-0.5, 0.5)
             speed = random.uniform(60, 140)
