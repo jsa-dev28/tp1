@@ -1,5 +1,5 @@
 """
-Módulo de la serpiente (jugadores y bots).
+Módulo de la serpiente (jugador y bot).
 """
 
 import math
@@ -11,11 +11,13 @@ from .constants import (
     INITIAL_LENGTH, SPEED_BASE, SPEED_BOOST, BOOST_DRAIN,
     GROW_PER_FOOD, TURN_SPEED,
     PU_SPEED, PU_GHOST, PU_MAGNET, PU_SHIELD, PU_DOUBLE,
-    POWERUP_DURATION, AI_REACTION_TIME
+    POWERUP_DURATION,
+    AI_REACTION_TIME, AI_SIGHT_RADIUS, AI_DANGER_RADIUS,
 )
 
 
 class Segment:
+    """Un segmento del cuerpo."""
     __slots__ = ("x", "y")
 
     def __init__(self, x: float, y: float):
@@ -24,6 +26,10 @@ class Segment:
 
 
 class Snake:
+    """
+    Serpiente genérica.  Subclasificada por PlayerSnake y BotSnake.
+    """
+
     def __init__(self, color_info: dict, snake_id: int, x=None, y=None):
         self.id = snake_id
         self.color_info = color_info
@@ -136,7 +142,6 @@ class Snake:
             killer.kills += 1
             killer.score += max(50, self.length * 2)
 
-
     def head_rect(self) -> pygame.Rect:
         r = SEGMENT_RADIUS
         return pygame.Rect(self.head.x - r, self.head.y - r, r * 2, r * 2)
@@ -158,7 +163,7 @@ class Snake:
             if dx * dx + dy * dy < (SEGMENT_RADIUS * 2) ** 2:
                 return True
         return False
-    
+
     def draw(self, surface: pygame.Surface, camera_x: float, camera_y: float,
              alpha_override: int = 255):
         if not self.segments:
@@ -206,6 +211,7 @@ class Snake:
                     min(255, color[1] + 60),
                     min(255, color[2] + 60)
                 ), (sx - r // 3, sy - r // 3), max(2, r // 3))
+
         self._draw_eyes(surface, camera_x, camera_y)
 
         if self.has_shield:
@@ -233,7 +239,6 @@ class Snake:
         eye_r = max(2, r // 3)
         pygame.draw.circle(surface, (255, 255, 255), (int(ex1), int(ey1)), eye_r)
         pygame.draw.circle(surface, (255, 255, 255), (int(ex2), int(ey2)), eye_r)
-        # Pupila
         pupil_r = max(1, eye_r // 2)
         px = math.cos(self.angle) * pupil_r * 0.5
         py = math.sin(self.angle) * pupil_r * 0.5
@@ -323,7 +328,7 @@ class BotSnake(Snake):
             self._behavior = self.BEHAVIOR_FLEE
             flee_angle = danger_angle + math.pi + random.uniform(-0.4, 0.4)
             self._target_angle = flee_angle
-            self.boosting = True
+            self.boosting = self.target_length > INITIAL_LENGTH + 6
             self._smooth_turn(dt)
             self.update(dt)
             return

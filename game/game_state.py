@@ -1,10 +1,9 @@
 """
-Estado principal del juego: inicializa, actualiza y dibuja todo.
+Estado principal del juego.
 """
 
 import math
 import random
-import time
 import pygame
 
 from .constants import (
@@ -12,7 +11,7 @@ from .constants import (
     FOOD_COUNT_TARGET, FOOD_RADIUS,
     POWERUP_SPAWN_INTERVAL,
     SEGMENT_RADIUS, GROW_PER_FOOD,
-    PLAYER_COLORS, BOT_COLORS, PLAYER_KEYS,
+    BOT_COLORS, PLAYER_KEYS,
     C_BG, C_GRID,
     PU_MAGNET,
 )
@@ -24,11 +23,9 @@ from . import sounds
 
 
 class GameState:
-    """Gestiona toda la lógica y el renderizado de una partida."""
-
     def __init__(self, screen: pygame.Surface, mode: str,
                  num_players: int, num_bots: int,
-                 server=None, client=None):
+                 player_configs=None, server=None, client=None):
         self.screen = screen
         self.mode = mode
         self.num_players = num_players
@@ -47,18 +44,16 @@ class GameState:
 
         self.cam_x = 0.0
         self.cam_y = 0.0
-
         self._pu_timer = POWERUP_SPAWN_INTERVAL
+        self._kill_feed = []
 
-        self._kill_feed: list[tuple[str, float]] = []
+        self.snakes = []
+        self._init_snakes(player_configs or [])
 
-        self.snakes: list = []
-        self._init_snakes()
-
-        self.food: list[Food] = []
+        self.food = []
         self._spawn_initial_food()
 
-        self.powerups: list[PowerUp] = []
+        self.powerups = []
 
         self._stars = [(random.uniform(0, WORLD_W), random.uniform(0, WORLD_H),
                         random.uniform(0.5, 2.0)) for _ in range(400)]
@@ -66,17 +61,23 @@ class GameState:
         sounds.init()
         sounds.play("countdown")
 
-    def _init_snakes(self):
+    def _init_snakes(self, player_configs):
+        from .menu import COLOR_OPTIONS
         margin = 400
-        positions = []
 
         for i in range(self.num_players):
-            color = PLAYER_COLORS[i % len(PLAYER_COLORS)]
-            keys  = PLAYER_KEYS[i % len(PLAYER_KEYS)]
+            if i < len(player_configs):
+                cfg = player_configs[i]
+                color_info = dict(COLOR_OPTIONS[cfg.color_index])
+                color_info["name"] = cfg.name if cfg.name.strip() else f"Jugador {i+1}"
+            else:
+                from .constants import PLAYER_COLORS
+                color_info = dict(PLAYER_COLORS[i % len(PLAYER_COLORS)])
+
+            keys = PLAYER_KEYS[i % len(PLAYER_KEYS)]
             x = random.uniform(margin, WORLD_W - margin)
             y = random.uniform(margin, WORLD_H - margin)
-            s = PlayerSnake(color, i, keys, x, y)
-            positions.append((x, y))
+            s = PlayerSnake(color_info, i, keys, x, y)
             self.snakes.append(s)
 
         for j in range(self.num_bots):
@@ -89,21 +90,16 @@ class GameState:
 
     def _spawn_initial_food(self):
         for _ in range(FOOD_COUNT_TARGET):
-            big = random.random() < 0.08
-            self.food.append(Food(big=big))
+            self.food.append(Food(big=random.random() < 0.08))
 
     def _get_focus_snake(self):
-        """Devuelve la serpiente a seguir con la cámara."""
         humans = [s for s in self.snakes if s.is_human and s.alive]
         if humans:
             return humans[0]
         alive = [s for s in self.snakes if s.alive]
-        if alive:
-            return max(alive, key=lambda s: s.length)
-        return None
+        return max(alive, key=lambda s: s.length) if alive else None
 
-    def update(self, dt: float) -> str | None:
-        """Actualiza el estado. Devuelve "menu" si se debe volver al menú."""
+    def update(self, dt: float):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 return "menu"
@@ -130,13 +126,13 @@ class GameState:
 
         if self._state == "gameover":
             self._death_timer += dt
-            if self._death_timer > 3.0:
+            if self._death_timer > 3.5:
                 return "menu"
             return None
 
         self._t += dt
         self._pu_timer -= dt
-        self._update_kill_feed(dt)
+        self._kill_feed = [(t, a + dt) for t, a in self._kill_feed if a + dt < 4.0]
 
         pressed = pygame.key.get_pressed()
         for s in self.snakes:
@@ -151,8 +147,7 @@ class GameState:
             if s.alive:
                 s.update(dt)
                 if s.boosting and s._boost_particle_timer <= 0:
-                    self.particles.emit_boost(s.head.x, s.head.y,
-                                             s.body_color, s.angle)
+                    self.particles.emit_boost(s.head.x, s.head.y, s.body_color, s.angle)
                     s._boost_particle_timer = 0.04
 
         for s in self.snakes:
@@ -162,8 +157,7 @@ class GameState:
         self._check_collisions()
 
         while len(self.food) < FOOD_COUNT_TARGET:
-            big = random.random() < 0.08
-            self.food.append(Food(big=big))
+            self.food.append(Food(big=random.random() < 0.08))
 
         if self._pu_timer <= 0:
             self.powerups.append(PowerUp())
@@ -176,10 +170,10 @@ class GameState:
 
         focus = self._get_focus_snake()
         if focus:
-            target_cx = focus.head.x - SCREEN_W / 2
-            target_cy = focus.head.y - SCREEN_H / 2
-            self.cam_x += (target_cx - self.cam_x) * 0.1
-            self.cam_y += (target_cy - self.cam_y) * 0.1
+            tx = focus.head.x - SCREEN_W / 2
+            ty = focus.head.y - SCREEN_H / 2
+            self.cam_x += (tx - self.cam_x) * 0.1
+            self.cam_y += (ty - self.cam_y) * 0.1
 
         humans_alive = [s for s in self.snakes if s.is_human and s.alive]
         if self.num_players > 0 and not humans_alive:
@@ -191,19 +185,11 @@ class GameState:
             self._state = "gameover"
             self._death_timer = 0.0
 
-        if self.server:
-            self.server.broadcast_state(self._serialize_state())
-        if self.client:
-            remote = self.client.poll_state()
-            if remote:
-                self._apply_remote_state(remote)
-
         return None
 
     def _update_countdown(self, dt):
         self._countdown -= dt
-        n = max(0, math.ceil(self._countdown))
-        if n == 0 and self._countdown < 0:
+        if self._countdown < 0:
             self._state = "playing"
             sounds.play("go")
 
@@ -216,9 +202,6 @@ class GameState:
         if self._paused and key == pygame.K_q:
             return "menu"
         return None
-
-    def _update_kill_feed(self, dt):
-        self._kill_feed = [(t, a + dt) for t, a in self._kill_feed if a + dt < 4.0]
 
     def _apply_magnet(self, snake):
         magnet_r = 200
@@ -234,7 +217,6 @@ class GameState:
 
     def _check_collisions(self):
         alive = [s for s in self.snakes if s.alive]
-
         for snake in alive:
             hx, hy = snake.head.x, snake.head.y
 
@@ -265,7 +247,7 @@ class GameState:
             for other in alive:
                 if snake is other:
                     continue
-                if snake.collides_with_snake(other, skip_head=(other is snake)):
+                if snake.collides_with_snake(other):
                     if snake.has_shield:
                         sounds.play("shield_hit")
                         del snake.powerups["shield"]
@@ -273,36 +255,25 @@ class GameState:
                         self._kill_snake(snake, killer=other)
                         break
 
-            if snake.alive and len(snake.segments) > 25:
-                for seg in snake.segments[20:]:
-                    dx = hx - seg.x
-                    dy = hy - seg.y
-                    if dx * dx + dy * dy < (SEGMENT_RADIUS * 1.8) ** 2:
-                        self._kill_snake(snake, killer=snake)
-                        break
 
     def _kill_snake(self, snake, killer=None):
         if not snake.alive:
             return
         snake.die(killer)
-
         drops = snake.get_food_drops()
         for (fx, fy) in drops:
-            big = random.random() < 0.15
             self.food.append(Food(fx + random.uniform(-20, 20),
-                                  fy + random.uniform(-20, 20), big))
-
+                                  fy + random.uniform(-20, 20),
+                                  big=random.random() < 0.15))
         self.particles.emit_death(snake.head.x, snake.head.y, snake.head_color)
         sounds.play("die")
-
         if killer and killer is not snake:
             sounds.play("kill", 0.7)
-            self._kill_feed.append((f"☠ {killer.name} eliminó a {snake.name}", 0.0))
+            self._kill_feed.append((f"{killer.name} elimino a {snake.name}", 0.0))
 
     def draw(self):
         self.screen.fill(C_BG)
         self._draw_background()
-
         cx, cy = self.cam_x, self.cam_y
 
         for s in sorted(self.snakes, key=lambda x: x.length):
@@ -317,7 +288,6 @@ class GameState:
             pu.draw(self.screen, cx, cy, self._t, self.hud.font(14))
 
         self.particles.draw(self.screen, cx, cy)
-
         self._draw_world_border(cx, cy)
 
         focus = self._get_focus_snake()
@@ -330,81 +300,52 @@ class GameState:
             self.hud.draw_countdown(n)
 
         if self._state == "death":
-            dead_human = next((s for s in self.snakes if s.is_human and not s.alive), None)
-            if dead_human:
-                self.hud.draw_death_screen(dead_human, self.snakes, self._death_timer)
+            dead = next((s for s in self.snakes if s.is_human and not s.alive), None)
+            if dead:
+                self.hud.draw_death_screen(dead, self.snakes, self._death_timer)
 
         if self._state == "gameover":
             self._draw_gameover()
 
     def _draw_background(self):
-        """Grid y estrellas del fondo."""
         cx, cy = int(self.cam_x), int(self.cam_y)
         grid_size = 80
-
-        start_x = -(cx % grid_size)
-        start_y = -(cy % grid_size)
-        for gx in range(start_x, SCREEN_W + grid_size, grid_size):
+        sx = -(cx % grid_size)
+        sy = -(cy % grid_size)
+        for gx in range(sx, SCREEN_W + grid_size, grid_size):
             pygame.draw.line(self.screen, C_GRID, (gx, 0), (gx, SCREEN_H), 1)
-        for gy in range(start_y, SCREEN_H + grid_size, grid_size):
+        for gy in range(sy, SCREEN_H + grid_size, grid_size):
             pygame.draw.line(self.screen, C_GRID, (0, gy), (SCREEN_W, gy), 1)
-
-        for sx, sy, br in self._stars:
-            px = int((sx - cx * 0.2) % SCREEN_W)
-            py = int((sy - cy * 0.2) % SCREEN_H)
+        for stx, sty, br in self._stars:
+            px = int((stx - cx * 0.2) % SCREEN_W)
+            py = int((sty - cy * 0.2) % SCREEN_H)
             c = int(br * 50)
-            r = 1 if br < 1.2 else 2
-            pygame.draw.circle(self.screen, (c, c, c + 20), (px, py), r)
+            pygame.draw.circle(self.screen, (c, c, c + 20), (px, py), 1 if br < 1.2 else 2)
 
     def _draw_world_border(self, cx, cy):
-        """Dibuja el borde del mundo visible."""
-        bx1 = int(-cx)
-        by1 = int(-cy)
-        bx2 = int(WORLD_W - cx)
-        by2 = int(WORLD_H - cy)
-        pygame.draw.rect(self.screen, (200, 80, 80),
-                         (bx1, by1, bx2 - bx1, by2 - by1), 4)
+        bx1, by1 = int(-cx), int(-cy)
+        bx2, by2 = int(WORLD_W - cx), int(WORLD_H - cy)
+        pygame.draw.rect(self.screen, (200, 80, 80), (bx1, by1, bx2 - bx1, by2 - by1), 4)
         focus = self._get_focus_snake()
         if focus:
             hx, hy = focus.head.x, focus.head.y
-            warn_dist = 150
-            near_border = (hx < warn_dist or hx > WORLD_W - warn_dist or
-                           hy < warn_dist or hy > WORLD_H - warn_dist)
-            if near_border:
+            warn = 150
+            if hx < warn or hx > WORLD_W - warn or hy < warn or hy > WORLD_H - warn:
                 pulse = abs(math.sin(self._t * 4))
-                warn_surf = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
-                pygame.draw.rect(warn_surf, (255, 50, 50, int(60 * pulse)),
+                ws = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+                pygame.draw.rect(ws, (255, 50, 50, int(60 * pulse)),
                                  (0, 0, SCREEN_W, SCREEN_H), 20)
-                self.screen.blit(warn_surf, (0, 0))
+                self.screen.blit(ws, (0, 0))
 
     def _draw_gameover(self):
         overlay = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, 160))
         self.screen.blit(overlay, (0, 0))
-
         winner = max(self.snakes, key=lambda s: s.score)
-        txt = self.hud.font(48).render("🏆  FIN DE PARTIDA", True, (255, 210, 50))
+        txt = self.hud.font(48).render("FIN DE PARTIDA", True, (255, 210, 50))
         self.screen.blit(txt, txt.get_rect(center=(SCREEN_W // 2, SCREEN_H // 2 - 60)))
-
-        win_txt = self.hud.font(32).render(f"Ganador: {winner.name}  ({winner.score} pts)",
-                                           True, (255, 255, 255))
-        self.screen.blit(win_txt, win_txt.get_rect(center=(SCREEN_W // 2, SCREEN_H // 2 + 10)))
-
-        sub = self.hud.font(18).render("Volviendo al menú...", True, (180, 180, 200))
+        wt = self.hud.font(32).render(f"Ganador: {winner.name}  ({winner.score} pts)",
+                                      True, (255, 255, 255))
+        self.screen.blit(wt, wt.get_rect(center=(SCREEN_W // 2, SCREEN_H // 2 + 10)))
+        sub = self.hud.font(18).render("Volviendo al menu...", True, (180, 180, 200))
         self.screen.blit(sub, sub.get_rect(center=(SCREEN_W // 2, SCREEN_H // 2 + 70)))
-
-    # ------------------------------------------------------------------ #
-    #  Red LAN (stubs simples)
-    # ------------------------------------------------------------------ #
-
-    def _serialize_state(self) -> dict:
-        return {
-            "snakes": [
-                {"id": s.id, "x": s.head.x, "y": s.head.y,
-                 "score": s.score, "alive": s.alive}
-                for s in self.snakes
-            ]
-        }
-
-    def _apply_remote_state(self, state: dict):
-        pass

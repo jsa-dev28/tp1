@@ -1,5 +1,6 @@
 """
 Menú principal del juego.
+Incluye: selector de nombre, selector de color, sin modo LAN.
 """
 
 import math
@@ -9,9 +10,21 @@ import pygame
 from .constants import SCREEN_W, SCREEN_H, C_BG, PLAYER_COLORS
 from . import sounds
 
+COLOR_OPTIONS = [
+    {"body": (50,  200, 100), "head": (80,  255, 130), "glow": (50,  200, 80,  60)},
+    {"body": (60,  140, 220), "head": (100, 180, 255), "glow": (60,  140, 220, 60)},
+    {"body": (220, 70,  70),  "head": (255, 110, 110), "glow": (220, 70,  70,  60)},
+    {"body": (200, 160, 30),  "head": (255, 210, 50),  "glow": (200, 160, 30,  60)},
+    {"body": (160, 60,  200), "head": (200, 100, 255), "glow": (160, 60,  200, 50)},
+    {"body": (200, 110, 40),  "head": (255, 150, 80),  "glow": (200, 110, 40,  50)},
+    {"body": (40,  190, 190), "head": (80,  240, 240), "glow": (40,  190, 190, 50)},
+    {"body": (210, 210, 80),  "head": (255, 255, 130), "glow": (210, 210, 80,  50)},
+    {"body": (190, 60,  120), "head": (240, 100, 160), "glow": (190, 60,  120, 50)},
+    {"body": (255, 255, 255), "head": (200, 230, 255), "glow": (200, 200, 255, 50)},
+]
+
 
 class AnimatedSnake:
-
     def __init__(self, color, y_start):
         self.segments = [(x, y_start + math.sin(x * 0.02) * 50)
                          for x in range(-200, SCREEN_W + 200, 14)]
@@ -34,18 +47,16 @@ class AnimatedSnake:
             t = 1 - (i / n) * 0.3
             r = max(4, int(12 * t))
             alpha = int(180 * t)
-            color = (*self.color[:3], alpha)
             s = pygame.Surface((r * 2, r * 2), pygame.SRCALPHA)
-            pygame.draw.circle(s, color, (r, r), r)
+            pygame.draw.circle(s, (*self.color[:3], alpha), (r, r), r)
             surface.blit(s, (int(x) - r, int(y) - r))
 
 
 class Button:
-    def __init__(self, rect, text, color=(60, 180, 100), font=None):
+    def __init__(self, rect, text, color=(60, 180, 100)):
         self.rect = pygame.Rect(rect)
         self.text = text
         self.color = color
-        self.font = font
         self.hovered = False
         self._hover_scale = 0.0
 
@@ -55,60 +66,50 @@ class Button:
         self._hover_scale += (target - self._hover_scale) * 10 * dt
 
     def draw(self, surface, font):
-        f = self.font or font
         scale = 1 + self._hover_scale * 0.05
         w = int(self.rect.w * scale)
         h = int(self.rect.h * scale)
         x = self.rect.centerx - w // 2
         y = self.rect.centery - h // 2
-
-        bg_color = (
-            min(255, int(self.color[0] * (1.2 if self.hovered else 1.0))),
-            min(255, int(self.color[1] * (1.2 if self.hovered else 1.0))),
-            min(255, int(self.color[2] * (1.2 if self.hovered else 1.0))),
-        )
+        bg_color = tuple(min(255, int(c * (1.2 if self.hovered else 1.0))) for c in self.color)
         if self.hovered:
             glow = pygame.Surface((w + 20, h + 20), pygame.SRCALPHA)
-            pygame.draw.rect(glow, (*self.color[:3], 60), (0, 0, w + 20, h + 20),
-                             border_radius=14)
+            pygame.draw.rect(glow, (*self.color[:3], 60), (0, 0, w + 20, h + 20), border_radius=14)
             surface.blit(glow, (x - 10, y - 10))
-
         pygame.draw.rect(surface, (20, 20, 40), (x + 3, y + 3, w, h), border_radius=10)
         pygame.draw.rect(surface, bg_color, (x, y, w, h), border_radius=10)
-        pygame.draw.rect(surface, (255, 255, 255, 80 if self.hovered else 40),
-                         (x, y, w, h), 2, border_radius=10)
-
-        label = f.render(self.text, True, (255, 255, 255))
+        pygame.draw.rect(surface, (255, 255, 255), (x, y, w, h), 2, border_radius=10)
+        label = font.render(self.text, True, (255, 255, 255))
         surface.blit(label, label.get_rect(center=(x + w // 2, y + h // 2)))
 
     def clicked(self, event) -> bool:
         return (event.type == pygame.MOUSEBUTTONDOWN and
-                event.button == 1 and
-                self.rect.collidepoint(event.pos))
+                event.button == 1 and self.rect.collidepoint(event.pos))
+
+
+class PlayerConfig:
+    """Nombre y color elegidos por un jugador en el menú."""
+    def __init__(self, index: int):
+        self.index = index
+        self.name = f"Jugador {index + 1}"
+        self.color_index = index % len(COLOR_OPTIONS)
+        self.typing = False
 
 
 class Menu:
-    """Menú principal con pantallas anidadas."""
-
     SCREEN_MAIN   = "main"
-    SCREEN_LOCAL  = "local"
-    SCREEN_NETWORK = "network"
+    SCREEN_CONFIG = "config"
 
     def __init__(self, screen: pygame.Surface):
         self.screen = screen
         self._screen = self.SCREEN_MAIN
         self._t = 0.0
-        self._result = None
         self._selected_players = 1
         self._selected_bots = 5
-        self._net_mode = None
-        self._net_ip = "127.0.0.1"
-        self._net_port = 5555
-        self._input_active = False
-        self._input_text = ""
+        self._player_configs = [PlayerConfig(i) for i in range(4)]
 
         try:
-            base = pygame.font.match_font("impact,arialblack,impact,arial")
+            base = pygame.font.match_font("impact,arialblack,arial")
             self._font_title = pygame.font.Font(base, 72)
             self._font_sub   = pygame.font.Font(base, 28)
             base2 = pygame.font.match_font("consolas,couriernew,monospace")
@@ -121,109 +122,99 @@ class Menu:
             self._font_small = pygame.font.SysFont("monospace", 16)
 
         self._bg_snakes = [
-            AnimatedSnake(PLAYER_COLORS[i % len(PLAYER_COLORS)]["body"],
-                          100 + i * 120)
+            AnimatedSnake(PLAYER_COLORS[i % len(PLAYER_COLORS)]["body"], 100 + i * 120)
             for i in range(6)
         ]
-
         self._stars = [(random.uniform(0, SCREEN_W), random.uniform(0, SCREEN_H),
                         random.uniform(0.5, 2.0)) for _ in range(200)]
-
         self._build_buttons()
         sounds.init()
 
     def _build_buttons(self):
         cx = SCREEN_W // 2
         BW, BH = 320, 54
-
         self._btns_main = {
-            "local":   Button((cx - BW//2, 280, BW, BH), "🎮  JUGAR LOCAL",      (50, 160, 90)),
-            "network": Button((cx - BW//2, 348, BW, BH), "🌐  MULTIJUGADOR LAN", (50, 110, 200)),
-            "quit":    Button((cx - BW//2, 416, BW, BH), "✖   SALIR",            (180, 50, 50)),
+            "play": Button((cx - BW // 2, 300, BW, BH), "JUGAR",  (50, 160, 90)),
+            "quit": Button((cx - BW // 2, 368, BW, BH), "SALIR",  (180, 50, 50)),
         }
-
-        self._btns_local = {
-            "p_minus":  Button((cx - 180, 310, 44, 44), "◄",  (80, 80, 130)),
-            "p_plus":   Button((cx - 60,  310, 44, 44), "►",  (80, 80, 130)),
-            "b_minus":  Button((cx - 180, 380, 44, 44), "◄",  (80, 80, 130)),
-            "b_plus":   Button((cx - 60,  380, 44, 44), "►",  (80, 80, 130)),
-            "solo":     Button((cx - 220, 460, 200, 50), "⚡ SOLO vs IA",       (50, 160, 90)),
-            "coop":     Button((cx + 20,  460, 200, 50), "👥 COOPERATIVO",      (80, 120, 200)),
-            "vs":       Button((cx - 100, 524, 200, 50), "⚔  VERSUS LOCAL",     (180, 80, 50)),
-            "back":     Button((cx - 100, 600, 200, 44), "◄ VOLVER",            (80, 60, 60)),
-        }
-
-        self._btns_network = {
-            "server":   Button((cx - 180, 340, 340, 54), "🖥  CREAR PARTIDA (Server)", (50, 130, 80)),
-            "client":   Button((cx - 180, 410, 340, 54), "📡  UNIRSE (Cliente)",      (50, 90, 180)),
-            "back":     Button((cx - 100, 500, 200, 44), "◄ VOLVER",                 (80, 60, 60)),
+        self._btns_config = {
+            "p_minus": Button((cx - 230, 248, 40, 40), "<", (80, 80, 130)),
+            "p_plus":  Button((cx - 60,  248, 40, 40), ">", (80, 80, 130)),
+            "b_minus": Button((cx - 230, 298, 40, 40), "<", (80, 80, 130)),
+            "b_plus":  Button((cx - 60,  298, 40, 40), ">", (80, 80, 130)),
+            "solo":    Button((cx - 230, 620, 200, 50), "SOLO vs IA",   (50, 160, 90)),
+            "coop":    Button((cx + 30,  620, 200, 50), "COOPERATIVO",  (80, 120, 200)),
+            "vs":      Button((cx - 100, 680, 200, 50), "VERSUS",       (180, 80, 50)),
+            "back":    Button((cx - 100, 740, 200, 44), "< VOLVER",     (80, 60, 60)),
         }
 
     def reset(self):
         self._screen = self.SCREEN_MAIN
-        self._result = None
         self._t = 0.0
 
     def update_and_draw(self):
         dt = 1 / 60
         self._t += dt
-        clock_result = None
-
         mouse = pygame.mouse.get_pos()
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 return "quit"
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE and self._screen != self.SCREEN_MAIN:
-                    self._screen = self.SCREEN_MAIN
-                    sounds.play("menu_move")
-                if self._input_active:
-                    if event.key == pygame.K_BACKSPACE:
-                        self._input_text = self._input_text[:-1]
-                    elif event.key == pygame.K_RETURN:
-                        self._input_active = False
-                    else:
-                        self._input_text += event.unicode
+                result = self._handle_key(event)
+                if result:
+                    return result
             if event.type == pygame.MOUSEBUTTONDOWN:
                 sounds.play("menu_move")
-
-            clock_result = self._handle_event(event)
-            if clock_result:
-                return clock_result
+            result = self._handle_click(event)
+            if result:
+                return result
 
         self.screen.fill(C_BG)
         self._draw_stars()
         for sn in self._bg_snakes:
             sn.update(dt, self._t)
             sn.draw(self.screen)
-
         self._draw_title()
 
         if self._screen == self.SCREEN_MAIN:
-            self._update_draw_buttons(self._btns_main, mouse, dt)
-        elif self._screen == self.SCREEN_LOCAL:
-            self._draw_local_screen(mouse, dt)
-        elif self._screen == self.SCREEN_NETWORK:
-            self._draw_network_screen(mouse, dt)
+            self._draw_main(mouse, dt)
+        elif self._screen == self.SCREEN_CONFIG:
+            self._draw_config(mouse, dt)
 
-        ver = self._font_small.render("v1.0 · Slither Pygame Edition", True, (60, 60, 90))
+        ver = self._font_small.render("v1.1 - Slither Pygame Edition", True, (60, 60, 90))
         self.screen.blit(ver, (SCREEN_W - ver.get_width() - 10, SCREEN_H - 24))
-
         return None
 
-    def _handle_event(self, event):
+    def _handle_key(self, event):
+        if event.key == pygame.K_ESCAPE:
+            for pc in self._player_configs:
+                pc.typing = False
+            if self._screen != self.SCREEN_MAIN:
+                self._screen = self.SCREEN_MAIN
+                sounds.play("menu_move")
+            return None
+        for pc in self._player_configs:
+            if pc.typing:
+                if event.key == pygame.K_BACKSPACE:
+                    pc.name = pc.name[:-1]
+                elif event.key == pygame.K_RETURN:
+                    pc.typing = False
+                elif len(pc.name) < 16 and event.unicode.isprintable() and event.unicode != "":
+                    pc.name += event.unicode
+                return None
+        return None
+
+    def _handle_click(self, event):
         if self._screen == self.SCREEN_MAIN:
             if self._btns_main["quit"].clicked(event):
                 return "quit"
-            if self._btns_main["local"].clicked(event):
-                self._screen = self.SCREEN_LOCAL
-                sounds.play("menu_sel")
-            if self._btns_main["network"].clicked(event):
-                self._screen = self.SCREEN_NETWORK
+            if self._btns_main["play"].clicked(event):
+                self._screen = self.SCREEN_CONFIG
                 sounds.play("menu_sel")
 
-        elif self._screen == self.SCREEN_LOCAL:
-            b = self._btns_local
+        elif self._screen == self.SCREEN_CONFIG:
+            b = self._btns_config
             if b["p_minus"].clicked(event):
                 self._selected_players = max(1, self._selected_players - 1)
             if b["p_plus"].clicked(event):
@@ -234,102 +225,117 @@ class Menu:
                 self._selected_bots = min(12, self._selected_bots + 1)
             if b["back"].clicked(event):
                 self._screen = self.SCREEN_MAIN
+
+            for i in range(self._selected_players):
+                pc = self._player_configs[i]
+                col_l, col_r, name_rect = self._player_row_rects(i)
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    if col_l.collidepoint(event.pos):
+                        pc.color_index = (pc.color_index - 1) % len(COLOR_OPTIONS)
+                    elif col_r.collidepoint(event.pos):
+                        pc.color_index = (pc.color_index + 1) % len(COLOR_OPTIONS)
+                    elif name_rect.collidepoint(event.pos):
+                        for other in self._player_configs:
+                            other.typing = False
+                        pc.typing = True
+                    else:
+                        pc.typing = False
+
             if b["solo"].clicked(event):
                 sounds.play("menu_sel")
-                return ("local", 1, self._selected_bots, None, None)
+                return self._build_result("solo", 1, self._selected_bots)
             if b["coop"].clicked(event):
                 sounds.play("menu_sel")
-                return ("local", self._selected_players, self._selected_bots, None, None)
+                return self._build_result("coop", self._selected_players, self._selected_bots)
             if b["vs"].clicked(event):
                 sounds.play("menu_sel")
-                return ("local", self._selected_players, 0, None, None)
-
-        elif self._screen == self.SCREEN_NETWORK:
-            b = self._btns_network
-            if b["back"].clicked(event):
-                self._screen = self.SCREEN_MAIN
-            if b["server"].clicked(event):
-                sounds.play("menu_sel")
-                return ("network", 1, self._selected_bots, "server",
-                        ("0.0.0.0", self._net_port))
-            if b["client"].clicked(event):
-                sounds.play("menu_sel")
-                return ("network", 1, 0, "client",
-                        (self._net_ip, self._net_port))
+                return self._build_result("vs", self._selected_players, 0)
         return None
 
-    def _update_draw_buttons(self, btns: dict, mouse, dt):
-        for btn in btns.values():
+    def _build_result(self, mode, num_players, num_bots):
+        cfgs = self._player_configs[:num_players]
+        return (mode, num_players, num_bots, None, None, cfgs)
+
+    def _player_row_rects(self, index):
+        cx = SCREEN_W // 2
+        base_y = 360 + index * 56
+        col_l     = pygame.Rect(cx + 10,  base_y + 6, 30, 30)
+        col_r     = pygame.Rect(cx + 110, base_y + 6, 30, 30)
+        name_rect = pygame.Rect(cx - 230, base_y, 220, 42)
+        return col_l, col_r, name_rect
+
+    def _draw_main(self, mouse, dt):
+        for btn in self._btns_main.values():
+            btn.update(mouse, dt)
+            btn.draw(self.screen, self._font_body)
+        hint = self._font_small.render("Hasta 4 jugadores  |  IA configurable  |  Power-ups",
+                                       True, (80, 100, 80))
+        self.screen.blit(hint, hint.get_rect(center=(SCREEN_W // 2, 450)))
+
+    def _draw_config(self, mouse, dt):
+        cx = SCREEN_W // 2
+        f  = self._font_body
+        fs = self._font_small
+
+        sec = self._font_sub.render("CONFIGURAR PARTIDA", True, (180, 220, 180))
+        self.screen.blit(sec, sec.get_rect(center=(cx, 210)))
+
+        p_label = f.render(f"Jugadores humanos:  {self._selected_players}", True, (220, 220, 255))
+        self.screen.blit(p_label, p_label.get_rect(midleft=(cx - 185, 268)))
+        b_label = f.render(f"Bots de IA:         {self._selected_bots}", True, (220, 220, 255))
+        self.screen.blit(b_label, b_label.get_rect(midleft=(cx - 185, 318)))
+
+        self.screen.blit(fs.render("NOMBRE  (clic para editar)", True, (140, 160, 140)),
+                         (cx - 230, 342))
+        self.screen.blit(fs.render("COLOR", True, (140, 160, 140)), (cx + 10, 342))
+        self.screen.blit(fs.render("TECLAS", True, (140, 160, 140)), (cx + 160, 342))
+
+        KEY_HINTS = ["WASD + LSHIFT", "Flechas + RSHIFT", "IJKL + U", "Num 8456 + 0"]
+
+        for i in range(self._selected_players):
+            pc = self._player_configs[i]
+            col = COLOR_OPTIONS[pc.color_index]
+            col_l, col_r, name_rect = self._player_row_rects(i)
+            base_y = name_rect.y
+
+            row_bg = pygame.Surface((SCREEN_W - 80, 44), pygame.SRCALPHA)
+            row_bg.fill((255, 255, 255, 8) if i % 2 == 0 else (0, 0, 0, 0))
+            self.screen.blit(row_bg, (40, base_y))
+
+            border_color = col["head"] if pc.typing else (80, 80, 100)
+            pygame.draw.rect(self.screen, (20, 20, 35), name_rect, border_radius=6)
+            pygame.draw.rect(self.screen, border_color, name_rect, 2, border_radius=6)
+            display = (pc.name or " ") + ("|" if pc.typing and int(self._t * 2) % 2 == 0 else "")
+            ns = f.render(display, True, (230, 230, 255))
+            self.screen.blit(ns, ns.get_rect(midleft=(name_rect.x + 8, name_rect.centery)))
+
+            pygame.draw.circle(self.screen, col["body"], (cx + 75, base_y + 21), 14)
+            pygame.draw.circle(self.screen, col["head"], (cx + 75, base_y + 21), 9)
+            self.screen.blit(fs.render("<", True, (180, 180, 220)),
+                             fs.render("<", True, (180, 180, 220)).get_rect(center=col_l.center))
+            self.screen.blit(fs.render(">", True, (180, 180, 220)),
+                             fs.render(">", True, (180, 180, 220)).get_rect(center=col_r.center))
+
+            ks = fs.render(KEY_HINTS[i], True, col["head"])
+            self.screen.blit(ks, (cx + 160, base_y + 12))
+
+        for btn in self._btns_config.values():
             btn.update(mouse, dt)
             btn.draw(self.screen, self._font_body)
 
     def _draw_title(self):
         cx = SCREEN_W // 2
         t = self._t
-
-        shadow_offset = int(4 + 2 * math.sin(t * 1.5))
-        title_text = "SLITHER.IO"
-        shadow = self._font_title.render(title_text, True, (10, 40, 10))
-        self.screen.blit(shadow, shadow.get_rect(center=(cx + shadow_offset,
-                                                          140 + shadow_offset)))
-
-        title1 = self._font_title.render(title_text, True, (80, 240, 100))
-        title2 = self._font_title.render(title_text, True, (50, 180, 70))
-        self.screen.blit(title2, title2.get_rect(center=(cx, 141)))
-        self.screen.blit(title1, title1.get_rect(center=(cx, 140)))
-
+        off = int(4 + 2 * math.sin(t * 1.5))
+        shadow = self._font_title.render("SLITHER.IO", True, (10, 40, 10))
+        self.screen.blit(shadow, shadow.get_rect(center=(cx + off, 120 + off)))
+        title = self._font_title.render("SLITHER.IO", True, (80, 240, 100))
+        self.screen.blit(title, title.get_rect(center=(cx, 120)))
         sub = self._font_sub.render("PYGAME EDITION", True, (100, 180, 110))
-        self.screen.blit(sub, sub.get_rect(center=(cx, 200)))
+        self.screen.blit(sub, sub.get_rect(center=(cx, 178)))
 
     def _draw_stars(self):
-        t = self._t
         for sx, sy, br in self._stars:
-            twinkle = 0.5 + 0.5 * math.sin(br * 7 + t * br)
+            twinkle = 0.5 + 0.5 * math.sin(br * 7 + self._t * br)
             c = int(30 + 50 * twinkle)
             pygame.draw.circle(self.screen, (c, c, c + 10), (int(sx), int(sy)), 1)
-
-    def _draw_local_screen(self, mouse, dt):
-        cx = SCREEN_W // 2
-        f = self._font_body
-        fs = self._font_small
-
-        sec = self._font_sub.render("CONFIGURAR PARTIDA LOCAL", True, (180, 220, 180))
-        self.screen.blit(sec, sec.get_rect(center=(cx, 250)))
-
-        p_label = f.render(f"Jugadores humanos:  {self._selected_players}", True, (220, 220, 255))
-        self.screen.blit(p_label, p_label.get_rect(center=(cx - 50, 330)))
-
-        b_label = f.render(f"Bots de IA:         {self._selected_bots}", True, (220, 220, 255))
-        self.screen.blit(b_label, b_label.get_rect(center=(cx - 50, 400)))
-
-        hints = [
-            "J1: WASD + SHIFT(boost)",
-            "J2: ↑↓←→ + RSHIFT",
-            "J3: IJKL + U",
-            "J4: Numpad 8456 + 0",
-        ]
-        for i, h in enumerate(hints[:self._selected_players]):
-            ht = fs.render(h, True, PLAYER_COLORS[i]["head"])
-            self.screen.blit(ht, (cx + 100, 300 + i * 22))
-
-        self._update_draw_buttons(self._btns_local, mouse, dt)
-
-    def _draw_network_screen(self, mouse, dt):
-        cx = SCREEN_W // 2
-        f = self._font_body
-
-        sec = self._font_sub.render("MULTIJUGADOR LAN", True, (180, 200, 255))
-        self.screen.blit(sec, sec.get_rect(center=(cx, 250)))
-
-        info_lines = [
-            f"IP local:  {self._net_ip}",
-            f"Puerto:    {self._net_port}",
-            "",
-            "El servidor crea la partida.",
-            "Los clientes se unen con la IP del host.",
-        ]
-        for i, line in enumerate(info_lines):
-            s = f.render(line, True, (200, 200, 220))
-            self.screen.blit(s, s.get_rect(center=(cx, 290 + i * 26)))
-
-        self._update_draw_buttons(self._btns_network, mouse, dt)
