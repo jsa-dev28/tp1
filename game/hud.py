@@ -42,9 +42,6 @@ class HUD:
     def font(self, size: int) -> pygame.font.Font:
         return self._fonts.get(size, self._fonts[16])
 
-    # ================================================================== #
-    #  HUD mínimo por viewport
-    # ================================================================== #
 
     def draw_player_hud(self, surf: pygame.Surface, snake, t: float,
                         vp_x: int, vp_y: int, vp_w: int, vp_h: int):
@@ -53,7 +50,6 @@ class HUD:
         vp_x/vp_y son el offset del viewport en la pantalla principal (para centrar
         la barra de powerups en pantalla completa si es solo un jugador).
         """
-        # Stats en esquina inferior izquierda
         lines = [
             f"Score: {snake.score}",
             f"Largo: {snake.length}",
@@ -67,10 +63,8 @@ class HUD:
             surf.blit(tx, (8, y))
             y += 18
 
-        # Barra de power-ups centrada en la parte inferior del viewport
         self._draw_powerup_bar(surf, snake, t, vp_w)
 
-        # Boost: indicador de "TURBO" cuando está activo
         if snake.boosting:
             boost_s = self.font(16).render("TURBO", True, (255, 220, 50))
             surf.blit(boost_s, boost_s.get_rect(
@@ -120,10 +114,6 @@ class HUD:
 
             start_x += card_w + gap
 
-    # ================================================================== #
-    #  Leaderboard compartido (dibuja directo en screen)
-    # ================================================================== #
-
     def draw_leaderboard(self, screen: pygame.Surface, snakes: list):
         alive = sorted([s for s in snakes if s.alive],  key=lambda s: s.score, reverse=True)
         dead  = sorted([s for s in snakes if not s.alive], key=lambda s: s.score, reverse=True)
@@ -157,12 +147,7 @@ class HUD:
             sc = self.font(13).render(str(snake.score), True, (255, 255, 255))
             panel.blit(sc, (panel_w - sc.get_width() - 6, y + 2))
 
-        # Esquina superior derecha
         screen.blit(panel, (SCREEN_W - panel_w - 10, 10))
-
-    # ================================================================== #
-    #  Kill feed
-    # ================================================================== #
 
     def draw_kill_feed(self, screen: pygame.Surface, events: list):
         x = SCREEN_W - 280
@@ -177,10 +162,6 @@ class HUD:
             tmp.set_alpha(alpha)
             screen.blit(tmp, (x, y))
             y += 20
-
-    # ================================================================== #
-    #  Overlays globales
-    # ================================================================== #
 
     def draw_pause(self, screen: pygame.Surface):
         ov = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
@@ -221,10 +202,6 @@ class HUD:
                                         True, (180, 180, 200))
             screen.blit(hint, hint.get_rect(center=(SCREEN_W // 2, SCREEN_H // 2 + 175)))
 
-    # ================================================================== #
-    #  Minimapa compartido
-    # ================================================================== #
-
     def draw_minimap(self, screen: pygame.Surface, snakes: list,
                      food_list: list, powerups: list,
                      cameras: list, viewports: list, t: float):
@@ -248,14 +225,12 @@ class HUD:
         sx = MM_W / WORLD_W
         sy = MM_H / WORLD_H
 
-        # Comida (muestreo cada 4 para no saturar)
         for f in food_list[::4]:
             px = int(f.x * sx)
             py = int(f.y * sy)
             if 0 <= px < MM_W and 0 <= py < MM_H:
                 pygame.draw.circle(mm, (*f.color[:3], 100), (px, py), 1)
 
-        # Power-ups
         for pu in powerups:
             px = int(pu.x * sx)
             py = int(pu.y * sy)
@@ -263,14 +238,12 @@ class HUD:
                 pulse = int(160 + 80 * math.sin(t * 4))
                 pygame.draw.circle(mm, (*pu.color[:3], pulse), (px, py), 3)
 
-        # Rectángulos de cámara (área visible de cada jugador)
         for i, (cam, vp) in enumerate(zip(cameras, viewports)):
             cx, cy = cam[0], cam[1]
             rx = int(cx * sx)
             ry = int(cy * sy)
             rw = max(4, int(vp.w * sx))
             rh = max(4, int(vp.h * sy))
-            # Color del jugador correspondiente
             s = next((sn for sn in snakes if sn.is_human and sn.id == i), None)
             cam_color = (*s.head_color[:3], 60) if s else (200, 200, 200, 40)
             cam_border = s.head_color[:3] if s else (200, 200, 200)
@@ -279,37 +252,29 @@ class HUD:
             mm.blit(cam_surf, (rx, ry))
             pygame.draw.rect(mm, (*cam_border, 180), (rx, ry, rw, rh), 1)
 
-        # Serpientes
         for snake in snakes:
             if not snake.alive:
                 continue
-            # Cuerpo: línea del primer al último segmento muestreado
             segs = snake.segments[::max(1, len(snake.segments) // 8)]
             if len(segs) >= 2:
                 pts = [(int(seg.x * sx), int(seg.y * sy)) for seg in segs]
                 pygame.draw.lines(mm, (*snake.body_color[:3], 160), False, pts, 1)
-            # Cabeza
             hx = int(snake.head.x * sx)
             hy = int(snake.head.y * sy)
             if 0 <= hx < MM_W and 0 <= hy < MM_H:
                 r = 4 if snake.is_human else 2
                 pygame.draw.circle(mm, (*snake.head_color[:3], 240), (hx, hy), r)
-                # Punto blanco en el centro para jugadores humanos
                 if snake.is_human:
                     pygame.draw.circle(mm, (255, 255, 255, 220), (hx, hy), 2)
 
-        # Borde del minimapa
         pygame.draw.rect(mm, (80, 80, 130, 220), (0, 0, MM_W, MM_H), 2)
 
         screen.blit(mm, (mm_x, mm_y))
 
-        # Etiqueta
         label = self.font(12).render("MAPA", True, (180, 180, 210))
         screen.blit(label, (mm_x + 4, mm_y - 16))
 
-    # ================================================================== #
 
-    # Compatibilidad con llamadas antiguas de game_state
     def draw(self, snakes, food_list, powerups, focus_snake=None,
              t=0.0, paused=False, mode="solo"):
-        pass  # Reemplazado por métodos individuales
+        pass

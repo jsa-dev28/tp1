@@ -36,7 +36,7 @@ def main():
 
     while True:
         clock.tick(FPS)
-
+    
         if state == "menu":
             result = menu.update_and_draw()
             if result == "quit":

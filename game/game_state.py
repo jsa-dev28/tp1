@@ -19,8 +19,6 @@ from .particles import ParticleSystem
 from .hud import HUD
 from . import sounds
 
-# ── Layouts de viewport según cantidad de jugadores ──────────────────────
-# Cada entry es una lista de (x, y, w, h) normalizados en 0..1
 _LAYOUTS = {
     1: [(0.0, 0.0, 1.0, 1.0)],
     2: [(0.0, 0.0, 0.5, 1.0),
@@ -34,8 +32,7 @@ _LAYOUTS = {
         (0.5, 0.5, 0.5, 0.5)],
 }
 
-# Franja inferior para el leaderboard compartido (solo multijugador)
-_LEADERBOARD_H = 0   # se calcula en tiempo de ejecución
+_LEADERBOARD_H = 0
 
 
 def _get_viewports(num_players: int):
@@ -61,11 +58,9 @@ class GameState:
         self.num_players = num_players
         self.num_bots = num_bots
 
-        # Pantalla dividida solo cuando hay más de un jugador humano
         self._split = num_players > 1
         self._viewports = _get_viewports(num_players)
 
-        # Surface recortada para cada viewport (reutilizada cada frame)
         self._vp_surfs = [
             pygame.Surface((vp.w, vp.h)) for vp in self._viewports
         ]
@@ -79,7 +74,6 @@ class GameState:
         self._countdown = 3.0
         self._death_timer = 0.0
 
-        # Una cámara por viewport/jugador
         self._cameras = [[0.0, 0.0] for _ in range(max(num_players, 1))]
 
         self._pu_timer = POWERUP_SPAWN_INTERVAL
@@ -98,7 +92,6 @@ class GameState:
         sounds.init()
         sounds.play("countdown")
 
-    # ------------------------------------------------------------------ #
     def _init_snakes(self, player_configs):
         from .menu import COLOR_OPTIONS
         margin = 400
@@ -138,7 +131,6 @@ class GameState:
         alive = [s for s in self.snakes if s.alive]
         return max(alive, key=lambda s: s.length) if alive else None
 
-    # ------------------------------------------------------------------ #
     def update(self, dt: float):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -173,7 +165,6 @@ class GameState:
                 return "menu"
             return None
 
-        # ── jugando ──
         self._t += dt
         self._pu_timer -= dt
         self._kill_feed = [(txt, age + dt) for txt, age in self._kill_feed if age + dt < 4.0]
@@ -206,7 +197,6 @@ class GameState:
             pu.update(dt)
         self.particles.update(dt)
 
-        # Actualizar cámaras (una por jugador humano)
         humans = self._human_snakes()
         for i, cam in enumerate(self._cameras):
             snake = humans[i] if i < len(humans) else None
@@ -215,13 +205,12 @@ class GameState:
                 tx = snake.head.x - vp.w / 2
                 ty = snake.head.y - vp.h / 2
             elif snake:
-                tx, ty = cam[0], cam[1]  # mantener posición al morir
+                tx, ty = cam[0], cam[1]
             else:
                 tx, ty = cam[0], cam[1]
             cam[0] += (tx - cam[0]) * 0.1
             cam[1] += (ty - cam[1]) * 0.1
 
-        # Fin de partida
         humans_alive = [s for s in self.snakes if s.is_human and s.alive]
         if self.num_players > 0 and not humans_alive:
             self._state = "death"
@@ -301,10 +290,6 @@ class GameState:
             sounds.play("kill", 0.7)
             self._kill_feed.append((f"{killer.name} elimino a {snake.name}", 0.0))
 
-    # ================================================================== #
-    #  DRAW
-    # ================================================================== #
-
     def draw(self):
         self.screen.fill(C_BG)
 
@@ -313,21 +298,16 @@ class GameState:
         else:
             self._draw_single()
 
-        # Leaderboard compartido (esquina superior derecha, encima de todo)
         self.hud.draw_leaderboard(self.screen, self.snakes)
 
-        # Minimapa compartido (esquina inferior derecha)
         self.hud.draw_minimap(self.screen, self.snakes, self.food, self.powerups,
                               self._cameras, self._viewports, self._t)
 
-        # Kill feed compartido
         self.hud.draw_kill_feed(self.screen, self._kill_feed)
 
-        # Separadores entre viewports
         if self._split:
             self._draw_viewport_borders()
 
-        # Estados globales
         if self._state == "countdown":
             self.hud.draw_countdown(self.screen, max(0, math.ceil(self._countdown)))
         if self._state == "death":
@@ -339,7 +319,6 @@ class GameState:
         if self._paused:
             self.hud.draw_pause(self.screen)
 
-    # ------------------------------------------------------------------ #
     def _draw_single(self):
         """Modo un jugador: dibuja directo en screen."""
         cam = self._cameras[0]
@@ -349,7 +328,6 @@ class GameState:
 
         self._draw_world(surf, cx, cy, vp.w, vp.h, offset_x=0, offset_y=0)
 
-        # HUD mínimo del jugador
         focus = self._get_focus_snake(0)
         if focus and focus.alive:
             self.hud.draw_player_hud(surf, focus, self._t,
@@ -365,13 +343,11 @@ class GameState:
             vp_surf.fill(C_BG)
             self._draw_world(vp_surf, cx, cy, vp.w, vp.h, offset_x=0, offset_y=0)
 
-            # HUD mínimo dentro del viewport
             snake = self._get_focus_snake(i)
             if snake and snake.alive:
                 self.hud.draw_player_hud(vp_surf, snake, self._t,
                                          0, 0, vp.w, vp.h)
 
-            # Nombre del jugador en esquina superior izquierda del viewport
             label = self.hud.font(16).render(
                 f"[ {snake.name if snake else '?'} ]", True,
                 snake.head_color if snake else (200, 200, 200)
@@ -384,27 +360,21 @@ class GameState:
         """Líneas de separación entre viewports."""
         n = self.num_players
         if n == 2:
-            # Solo línea vertical
             pygame.draw.line(self.screen, (40, 40, 60),
                              (SCREEN_W // 2, 0), (SCREEN_W // 2, SCREEN_H), 3)
         elif n == 3:
-            # Línea vertical solo en la mitad superior (entre J1 y J2)
             pygame.draw.line(self.screen, (40, 40, 60),
                              (SCREEN_W // 2, 0), (SCREEN_W // 2, SCREEN_H // 2), 3)
-            # Línea horizontal que separa la fila superior de la inferior
             pygame.draw.line(self.screen, (40, 40, 60),
                              (0, SCREEN_H // 2), (SCREEN_W, SCREEN_H // 2), 3)
         elif n == 4:
-            # Cuadrícula completa
             pygame.draw.line(self.screen, (40, 40, 60),
                              (SCREEN_W // 2, 0), (SCREEN_W // 2, SCREEN_H), 3)
             pygame.draw.line(self.screen, (40, 40, 60),
                              (0, SCREEN_H // 2), (SCREEN_W, SCREEN_H // 2), 3)
 
-    # ------------------------------------------------------------------ #
     def _draw_world(self, surf, cx, cy, vp_w, vp_h, offset_x, offset_y):
         """Dibuja el mundo (fondo + entidades) en `surf` con la cámara dada."""
-        # Grid
         grid_size = 80
         sx = -(int(cx) % grid_size)
         sy = -(int(cy) % grid_size)
@@ -413,42 +383,35 @@ class GameState:
         for gy in range(sy, vp_h + grid_size, grid_size):
             pygame.draw.line(surf, C_GRID, (0, gy), (vp_w, gy), 1)
 
-        # Estrellas
         for stx, sty, br in self._stars:
             px = int((stx - cx * 0.2) % vp_w)
             py = int((sty - cy * 0.2) % vp_h)
             c = int(br * 50)
             pygame.draw.circle(surf, (c, c, c + 20), (px, py), 1 if br < 1.2 else 2)
 
-        # Comida
         for f in self.food:
             sx_f = f.x - cx
             sy_f = f.y - cy
             if -20 < sx_f < vp_w + 20 and -20 < sy_f < vp_h + 20:
                 f.draw(surf, cx, cy, self._t)
 
-        # Power-ups
         for pu in self.powerups:
             sx_p = pu.x - cx
             sy_p = pu.y - cy
             if -30 < sx_p < vp_w + 30 and -30 < sy_p < vp_h + 30:
                 pu.draw(surf, cx, cy, self._t, self.hud.font(14))
 
-        # Serpientes
         for s in sorted(self.snakes, key=lambda x: x.length):
             if s.alive:
                 s.draw(surf, cx, cy)
                 s.draw_name(surf, cx, cy, self.hud.font(12))
 
-        # Partículas
         self.particles.draw(surf, cx, cy)
 
-        # Borde del mundo
         bx1, by1 = int(-cx), int(-cy)
         bx2, by2 = int(WORLD_W - cx), int(WORLD_H - cy)
         pygame.draw.rect(surf, (200, 80, 80), (bx1, by1, bx2 - bx1, by2 - by1), 4)
 
-    # ------------------------------------------------------------------ #
     def _draw_gameover(self):
         overlay = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, 160))
