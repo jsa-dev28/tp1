@@ -89,6 +89,8 @@ class Snake:
 
         self.powerups: dict[str, float] = {}
 
+        self.invincible_timer = 0.0
+
         self.death_timer = 0.0
 
         self.killed_by: "Snake | None" = None
@@ -96,6 +98,7 @@ class Snake:
         self.lifetime = 0.0
 
         self._boost_particle_timer = 0.0
+
 
     @property
     def head(self) -> Segment:
@@ -128,7 +131,6 @@ class Snake:
     def has_magnet(self) -> bool:
         return PU_MAGNET in self.powerups
 
-
     def update(self, dt: float):
         if not self.alive:
             return
@@ -155,6 +157,9 @@ class Snake:
             del self.powerups[k]
         for k in list(self.powerups):
             self.powerups[k] -= dt
+
+        if self.invincible_timer > 0:
+            self.invincible_timer -= dt
 
         self._boost_particle_timer -= dt
 
@@ -238,7 +243,6 @@ class Snake:
                 surface.blit(seg_surf, (sx - r - 1, sy - r - 1))
             else:
                 pygame.draw.circle(surface, color, (sx, sy), r)
-
                 pygame.draw.circle(surface, (
                     min(255, color[0] + 60),
                     min(255, color[1] + 60),
@@ -321,8 +325,6 @@ class PlayerSnake(Snake):
         if pressed[self.keys["right"]]:
             self.angle += TURN_SPEED * dt
         self.boosting = pressed[self.keys["boost"]]
-
-
 
 class BotSnake(Snake):
     """IA con tres comportamientos: buscar comida, evitar peligros, perseguir."""

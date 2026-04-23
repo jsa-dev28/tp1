@@ -267,10 +267,13 @@ class GameState:
             for other in alive:
                 if snake is other:
                     continue
+                if snake.invincible_timer > 0:
+                    break
                 if snake.collides_with_snake(other):
                     if snake.has_shield:
                         sounds.play("shield_hit")
                         del snake.powerups["shield"]
+                        snake.invincible_timer = 1.5
                     else:
                         self._kill_snake(snake, killer=other)
                         break
@@ -289,6 +292,7 @@ class GameState:
         if killer and killer is not snake:
             sounds.play("kill", 0.7)
             self._kill_feed.append((f"{killer.name} elimino a {snake.name}", 0.0))
+
 
     def draw(self):
         self.screen.fill(C_BG)
