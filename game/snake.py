@@ -189,7 +189,6 @@ class Snake:
         return (dx * dx + dy * dy) < (SEGMENT_RADIUS + radius) ** 2
 
     def collides_with_snake(self, other: "Snake", skip_head: bool = True) -> bool:
-        """¿La cabeza de self choca con el cuerpo de other?"""
         if self.has_ghost:
             return False
         start = 1 if (other is self or skip_head) else 0

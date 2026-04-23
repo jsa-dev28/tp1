@@ -1,4 +1,4 @@
-# Slither.io — Pygame Edition
+# Slither.io — Pygame
 
 Mi proyecto consiste en una versión del juego Slither.io usando la librería Pygame. El proyecto incluye gran parte de las funciones del juego original, agregando funciones nuevas como pantalla dividida, habilidades especiales (power-ups), IA para los bots y generación de sonidos.
 
@@ -110,4 +110,4 @@ Todos los valores del juego están centralizados en "game/constants.py". Los má
 
 ## Investigación
 
-Investigué principalmente sobre cómo implementar efectos de sonido, los implementé usando la librería array, que viene instalada como librería estándar de Python, y genera todos los sonidos matemáticamente, para que no haga falta usar archivos de audio externos.
+Investigué principalmente sobre cómo implementar efectos de sonido, los implementé usando la librería array, que viene instalada como librería estándar de Python, y genera todos los sonidos matemáticamente, para que no haga falta usar archivos de audio externos. También investigué sobre como dibujar una pantalla dividida, cómo hacer que una serpiente suelte comida cuando muera, o cómo simular el comportamiento de la IA. 

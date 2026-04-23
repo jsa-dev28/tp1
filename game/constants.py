@@ -31,17 +31,17 @@ POWERUP_SPAWN_INTERVAL = 8.0
 POWERUP_DURATION = 7.0
 POWERUP_RADIUS = 12
 
-C_BG        = (8,  14,  28)
-C_GRID      = (14, 22,  45)
-C_WHITE     = (240, 240, 255)
-C_BLACK     = (0,   0,   0)
-C_HUD_BG    = (0,   0,   0,  160)
+C_BG = (8,  14,  28)
+C_GRID = (14, 22,  45)
+C_WHITE = (240, 240, 255)
+C_BLACK = (0, 0, 0)
+C_HUD_BG = (0, 0, 0, 160)
 
 PLAYER_COLORS = [
-    {"body": (50, 200, 100),  "head": (80,  255, 130),  "glow": (50, 200, 80,  60),  "name": "Verde"},
-    {"body": (60, 140, 220),  "head": (100, 180, 255),  "glow": (60, 140, 220, 60),  "name": "Azul"},
-    {"body": (220, 70,  70),  "head": (255, 110, 110),  "glow": (220, 70,  70,  60),  "name": "Rojo"},
-    {"body": (200, 160, 30),  "head": (255, 210, 50),   "glow": (200, 160, 30, 60),  "name": "Amarillo"},
+    {"body": (50, 200, 100),  "head": (80,  255, 130), "glow": (50, 200, 80,  60),  "name": "Verde"},
+    {"body": (60, 140, 220),  "head": (100, 180, 255), "glow": (60, 140, 220, 60),  "name": "Azul"},
+    {"body": (220, 70,  70),  "head": (255, 110, 110), "glow": (220, 70,  70,  60),  "name": "Rojo"},
+    {"body": (200, 160, 30),  "head": (255, 210, 50),  "glow": (200, 160, 30, 60),  "name": "Amarillo"},
 ]
 
 BOT_COLORS = [
@@ -59,23 +59,23 @@ BOT_COLORS = [
     {"body": (170, 80,  170), "head": (210, 120, 210), "glow": (170, 80,  170, 50), "name": "Bot Fucsia"},
 ]
 
-PU_SPEED    = "speed"
-PU_GHOST    = "ghost"
-PU_MAGNET   = "magnet"
-PU_SHIELD   = "shield"
-PU_DOUBLE   = "double"
+PU_SPEED = "speed"
+PU_GHOST = "ghost"
+PU_MAGNET = "magnet"
+PU_SHIELD = "shield"
+PU_DOUBLE = "double"
 
 POWERUP_COLORS = {
-    PU_SPEED:   (255, 220, 50),
-    PU_GHOST:   (180, 180, 255),
-    PU_MAGNET:  (255, 120, 200),
-    PU_SHIELD:  (80,  220, 255),
-    PU_DOUBLE:  (255, 160, 60),
+    PU_SPEED: (255, 220, 50),
+    PU_GHOST: (180, 180, 255),
+    PU_MAGNET: (255, 120, 200),
+    PU_SHIELD: (80,  220, 255),
+    PU_DOUBLE: (255, 160, 60),
 }
 
 POWERUP_ICONS = {
-    PU_SPEED:  "⚡",
-    PU_GHOST:  "👻",
+    PU_SPEED: "⚡",
+    PU_GHOST: "👻",
     PU_MAGNET: "🧲",
     PU_SHIELD: "🛡",
     PU_DOUBLE: "×2",

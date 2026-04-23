@@ -1,6 +1,6 @@
 """
-Generador de sonidos procedurales.
-No requiere archivos externos; todo se sintetiza con numpy + pygame.mixer.
+Generador de sonidos.
+No requiere archivos externos, todo se sintetiza con pygame.mixer.
 """
 
 import math

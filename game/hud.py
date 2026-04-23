@@ -129,7 +129,7 @@ class HUD:
         title = self.font(14).render("RANKING", True, (255, 210, 50))
         panel.blit(title, (8, 8))
 
-        gold   = (255, 210, 50)
+        gold = (255, 210, 50)
         silver = (200, 200, 200)
         bronze = (180, 120, 60)
 
